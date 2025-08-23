@@ -16,23 +16,34 @@ namespace Domen.PomocneMetode
         public void PokreniJedinice(TipJedinice tipJedinice)
         {
             string unitPath;
+            string processName;
 
             switch (tipJedinice)
             {
                 case TipJedinice.URGENTNA:
                     unitPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                         "..", "..", "..", "UrgentnaPomoc", "bin", "Debug", "UrgentnaPomoc.exe");
+                    processName = "UrgentnaPomoc"; // ime procesa bez ekstenzije
                     break;
                 case TipJedinice.DIJAGNOSTICKA:
                     unitPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                         "..", "..", "..", "Dijagnostika", "bin", "Debug", "Dijagnostika.exe");
+                    processName = "Dijagnostika";
                     break;
                 case TipJedinice.TERAPEUTSKA:
                     unitPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                         "..", "..", "..", "Terapija", "bin", "Debug", "Terapija.exe");
+                    processName = "Terapija";
                     break;
                 default:
                     throw new ArgumentException($"Nepoznat tip jedinice: {tipJedinice}", nameof(tipJedinice));
+            }
+
+            // Provera da li je proces već pokrenut
+            if (Process.GetProcessesByName(processName).Length > 0)
+            {
+                Console.WriteLine($"Jedinica {tipJedinice} je već pokrenuta.");
+                return;
             }
 
             if (!File.Exists(unitPath))
@@ -46,8 +57,6 @@ namespace Domen.PomocneMetode
             var startInfo = new ProcessStartInfo
             {
                 FileName = unitPath,
-                // Ako želiš da prosleđuješ argumente jedinici, dodaj ovde
-                // Arguments = "1 7000", 
                 WorkingDirectory = workingDir,
                 UseShellExecute = true
             };

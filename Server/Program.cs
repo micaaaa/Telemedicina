@@ -1,7 +1,9 @@
-﻿using Domen.Klase;
+﻿using Domen.Enumeracije;
+using Domen.Klase;
 using Domen.PomocneMetode;
 using Domen.Repozitorijumi.JedinicaRepozitorijum;
 using Domen.Repozitorijumi.PacijentRepozitorijum;
+using Domen.Repozitorijumi.ZahtevRepozitorijum;
 using System;
 using System.IO;
 using System.Net;
@@ -9,10 +11,15 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
-using static Domen.Klase.ZahtevPacijent;
 
 class Server
 {
+    static IPacijentRepozitorijum pacijentRepozitorijum = new PacijentRepozitorijum();
+    static JedinicaRepozitorijum jedinicaRepozitorijum = new JedinicaRepozitorijum();
+    static IZahtevRepozitorijum zahtevRepozitorijum = new ZahtevRepozitorijum(pacijentRepozitorijum);
+    static IspisPacijenta ispisPacijenta = new IspisPacijenta();
+    static object lockObj = new object();
+
     static void Main(string[] args)
     {
         const int port = 5000;
@@ -20,9 +27,8 @@ class Server
         listener.Start();
         Console.WriteLine($"[Server] Čekam konekcije na portu {port}...");
 
-        IPacijentRepozitorijum pr = new PacijentRepozitorijum();
-        IspisPacijenta ispisPacijenta = new IspisPacijenta();
-        pr.UcitajIzFajla();
+        // Pokrećemo thread koji obrađuje zahteve iz reda
+        new Thread(ObradaZahtevaLoop) { IsBackground = true }.Start();
 
         while (true)
         {
@@ -39,52 +45,37 @@ class Server
                     using (MemoryStream ms = new MemoryStream(buffer, 0, received))
                     {
                         BinaryFormatter formatter = new BinaryFormatter();
-                        ZahtevPacijentDTO dto = (ZahtevPacijentDTO)formatter.Deserialize(ms);
+                        Pacijent pacijent = (Pacijent)formatter.Deserialize(ms);
 
-                        // Dodaj pacijenta u centralnu listu i sačuvaj
-                        pr.DodajPacijenta(dto.Pacijent);
-                        pr.SacuvajUFajl(dto.Pacijent);
+                        // Dodaj pacijenta u repozitorijum (ako želiš)
+                        pacijentRepozitorijum.DodajPacijenta(pacijent);
+                        pacijentRepozitorijum.SacuvajUFajl(pacijent);
 
-                        Zahtev z = dto.Zahtev;
+                        Console.WriteLine($"[Server] Primljen pacijent: {pacijent.Ime} {pacijent.Prezime}, zahtev: {pacijent.VrsteZahteva}");
 
-                        Console.WriteLine($"[Server] Primljen zahtev: LBO: {z.IdPacijenta}, Jedinica: {z.IdJedinice}, Status: {z.StatusZahteva}");
-                        client.Send(Encoding.UTF8.GetBytes("PRIHVACENO"));
+                        // Pronađi odgovarajuću jedinicu za tip zahteva
+                        PronadjiPogodnuJedinicu pronadji = new PronadjiPogodnuJedinicu();
+                        Jedinica jedinica = pronadji.PronadjiPogodnu(pacijent.VrsteZahteva, jedinicaRepozitorijum);
 
-                        JedinicaRepozitorijum j = new JedinicaRepozitorijum();
-                        var jedinica = j.PronadjiJedinicu(z.IdJedinice);
                         if (jedinica == null)
                         {
-                            Console.WriteLine($"[Greška] Jedinica sa ID {z.IdJedinice} ne postoji.");
+                            Console.WriteLine("[Server] Nema dostupne jedinice za ovaj zahtev.");
+                            client.Send(Encoding.UTF8.GetBytes("Nema dostupnih jedinica."));
                             return;
                         }
 
-                        Console.WriteLine($"[Server] Zahtev prosleđen jedinici #{jedinica.IdJedinice} (TIP: {jedinica.TipJedinice})");
+                        // Kreiraj zahtev za obradu
+                        Zahtev zahtev = new Zahtev(pacijent.LBO, jedinica.IdJedinice, StatusZahteva.AKTIVAN);
 
-                        KreiranjeInstanceJedinice kr = new KreiranjeInstanceJedinice();
-                        kr.PokreniJedinice(jedinica.TipJedinice);
-
-                        int portJedinice = 6001;
-                        string ipJedinice = "127.0.0.1";
-
-                        using (TcpClient jedinicaClient = new TcpClient())
+                        lock (lockObj)
                         {
-                            jedinicaClient.Connect(ipJedinice, portJedinice);
-                            using (NetworkStream ns = jedinicaClient.GetStream())
-                            {
-                                BinaryFormatter bf = new BinaryFormatter();
-
-                                // Pošalji zahtev jedinici direktno
-                                bf.Serialize(ns, z);
-                                ns.Flush();
-
-                                // Primi odgovor
-                                Zahtev odgovorZahtev = (Zahtev)bf.Deserialize(ns);
-                                Console.WriteLine($"[Server] Odgovor od jedinice: LBO: {odgovorZahtev.IdPacijenta}, Jedinica: {odgovorZahtev.IdJedinice}, Status: {odgovorZahtev.StatusZahteva}");
-
-                                Pacijent pac = pr.PronadjiPoLBO(odgovorZahtev.IdPacijenta);
-                                ispisPacijenta.ispisiPacijenta(pac);
-                            }
+                            zahtevRepozitorijum.DodajZahtev(zahtev);
                         }
+
+                        Console.WriteLine($"[Server] Zahtev dodat u red za jedinicu #{jedinica.IdJedinice} (Tip: {jedinica.TipJedinice})");
+
+                        // Potvrdi klijentu da je zahtev prihvaćen i stavi ga u red
+                        client.Send(Encoding.UTF8.GetBytes("Zahtev prihvaćen i stavljen u red za obradu."));
                     }
                 }
                 catch (Exception ex)
@@ -98,4 +89,94 @@ class Server
             }).Start();
         }
     }
+
+    static void ObradaZahtevaLoop()
+    {
+        KreiranjeInstanceJedinice kreiranjeInstance = new KreiranjeInstanceJedinice();
+
+        while (true)
+        {
+            Zahtev zahtev = null;
+
+            lock (lockObj)
+            {
+                zahtev = zahtevRepozitorijum.UzmiSledeciZahtevZaObradu();
+            }
+
+            if (zahtev != null)
+            {
+                try
+                {
+                    Console.WriteLine($"[Server] Obrađujem zahtev za pacijenta {zahtev.IdPacijenta} u jedinici {zahtev.IdJedinice}");
+
+                    // Pronađi jedinicu po IdJedinice da bi znao tip i port
+                    Jedinica jedinica = jedinicaRepozitorijum.GetById(zahtev.IdJedinice);
+                    if (jedinica == null)
+                    {
+                        Console.WriteLine("[Server] Greška: Jedinica nije pronađena!");
+                        continue;
+                    }
+
+                    int port = 0;
+
+                    switch (jedinica.TipJedinice)
+                    {
+                        case TipJedinice.URGENTNA:
+                            port = 6001;
+                            break;
+                        case TipJedinice.DIJAGNOSTICKA:
+                            port = 6002;
+                            break;
+                        case TipJedinice.TERAPEUTSKA:
+                            port = 6003;
+                            break;
+                        default:
+                            Console.WriteLine("[Server] Nepoznat tip jedinice!");
+                            continue;
+                    }
+
+                    // Pokreni jedinicu pre konekcije
+                    kreiranjeInstance.PokreniJedinice(jedinica.TipJedinice);
+
+                    // Sačekaj da se jedinica pokrene i otvori port
+                    Thread.Sleep(500);
+
+                    using (TcpClient jedinicaClient = new TcpClient())
+                    {
+                        jedinicaClient.Connect("127.0.0.1", port);
+
+                        using (NetworkStream ns = jedinicaClient.GetStream())
+                        {
+                            BinaryFormatter bf = new BinaryFormatter();
+
+                            // Pošalji zahtev jedinici
+                            bf.Serialize(ns, zahtev);
+                            ns.Flush();
+
+                            // Sačekaj odgovor
+                            Zahtev odgovorZahtev = (Zahtev)bf.Deserialize(ns);
+
+                            Console.WriteLine($"[Server] Jedinica završila obradu: LBO: {odgovorZahtev.IdPacijenta}, Status: {odgovorZahtev.StatusZahteva}");
+
+                            Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(odgovorZahtev.IdPacijenta);
+                            ispisPacijenta.ispisiPacijenta(p);
+
+                            // Ukloni zahtev nakon završene obrade
+                            zahtevRepozitorijum.UkloniZavrsenZahtev(zahtev);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Server ERROR] Greška pri obradi zahteva: {ex.Message}");
+                }
+            }
+            else
+            {
+                Thread.Sleep(100);
+            }
+        }
+    }
+
+
 }

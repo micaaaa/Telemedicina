@@ -43,9 +43,8 @@ namespace UrgentnaPomoc
                                 Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
-                                // Simulacija operacije
-                                Random rnd = new Random();
-                                int trajanjeOperacije = rnd.Next(2000, 5000);
+
+                                int trajanjeOperacije = 20000;
                                 Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
                                 Thread.Sleep(trajanjeOperacije);
