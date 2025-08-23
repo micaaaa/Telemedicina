@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Domen.Klase
 {
+    [Serializable]
     public class Zahtev
     {
 

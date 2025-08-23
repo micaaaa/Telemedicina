@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace Domen.Enumeracije
 {
-    public enum TipJedinice
+    public enum StatusJedinice
     {
-        URGENTNA,
-        DIJAGNOSTICKA,
-        TERAPEUTSKA
+        SLOBODNA,
+        ZAUZETA
     }
 }

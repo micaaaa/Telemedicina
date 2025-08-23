@@ -49,5 +49,19 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Dijagnostika\Dijagnostika.csproj">
+      <Project>{18e2825a-2f69-41dc-b6f8-016b21e88f10}</Project>
+      <Name>Dijagnostika</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Domen\Domen.csproj">
+      <Project>{e89ac654-f41d-4d53-9dd5-e48537e9f28d}</Project>
+      <Name>Domen</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\UrgentnaPomoc\UrgentnaPomoc.csproj">
+      <Project>{35f9ea23-be89-49c6-b153-a35e1ad2b24e}</Project>
+      <Name>UrgentnaPomoc</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

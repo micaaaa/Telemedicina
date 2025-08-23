@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Domen.Klase
 {
+    [Serializable]
     public class Pacijent
     {
         public int LBO { get; set; } 
@@ -27,5 +28,6 @@ namespace Domen.Klase
             VrsteZahteva = vrsteZahteva;
             Status = status;
         }
+ 
     }
 }

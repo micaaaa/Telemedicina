@@ -4,17 +4,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using Domen.Klase;
 namespace Domen.PomocneMetode
 {
     public class RegistracijaPacijenta
     {
-        public void Registracija()
+        public Pacijent Registracija()
         {
             int lbo;
             int zah;
             string ime, prezime, adresa;
-            VrsteZahteva zahtev;
+            VrsteZahteva zahtev= new VrsteZahteva();
             Console.WriteLine("Doslo dosli! Unesite Vase podatke:");
             Console.WriteLine("LBO: ");
             lbo = int.Parse(Console.ReadLine());
@@ -37,7 +37,18 @@ namespace Domen.PomocneMetode
                 default:
                     Console.WriteLine("Molim Vas unesite broj od ponudjenih opcija 1, 2 ili 3!"); break;
             }
-
+            Status status= new Status();
+            switch (zahtev)
+            {
+                case VrsteZahteva.TERAPIJA:
+                    status = Status.CEKANJE_TERAPIJE; break;
+                case VrsteZahteva.PREGLED:
+                    status = Status.CEKANJE_PREGLEDA; break;
+                case VrsteZahteva.URGENTA_POMOC:
+                    status = Status.CEKANJE_OPERACIJE; break;
+            }
+            Pacijent p = new Pacijent(lbo, ime,prezime,adresa,zahtev,status);
+            return p;
         }
     }
 }

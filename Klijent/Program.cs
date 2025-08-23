@@ -1,12 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using Domen.Enumeracije;
+using Domen.Klase;
+using Domen.PomocneMetode;
+using Domen.Repozitorijumi.JedinicaRepozitorijum;
+using Domen.Repozitorijumi.PacijentRepozitorijum;
+using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
-
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
+using System.Threading;
+using static Domen.Klase.ZahtevPacijent;
 
 namespace Klijent
 {
@@ -14,83 +18,80 @@ namespace Klijent
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Dobro dosli!");
-
-            const string serverIp = "127.0.0.1";
-            const int serverPort = 5000;
-
             new Thread(() =>
             {
                 try
                 {
-                    //  Kreiramo TCP socket i povežemo se
-                    Socket sock = new Socket(
-                        AddressFamily.InterNetwork,
-                        SocketType.Stream,
-                        ProtocolType.Tcp);
-                    sock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
+                    const string serverIp = "127.0.0.1";
+                    const int serverPort = 5000;
 
-                    //kreiramo drugi tcp socket za obavjestenje o isporucenoj porudzbini
-                    Socket orderSock = new Socket(
-                        AddressFamily.InterNetwork,
-                        SocketType.Stream,
-                        ProtocolType.Tcp);
-                    orderSock.Connect(new IPEndPoint(IPAddress.Parse(serverIp), 4011));
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    socket.Connect(IPAddress.Parse(serverIp), serverPort);
+                    Console.WriteLine("[Pacijent] Konektovan na server.");
 
-                    // Pošaljemo REGISTER;{waiterId};Waiter;{udpPort}\n
-                    string regMsg = $"REGISTROVAN;{1};Pacijent;{5001}\n";
-                    sock.Send(Encoding.UTF8.GetBytes(regMsg));
+                    IPacijentRepozitorijum pr = new PacijentRepozitorijum();
 
-                    // Prihvatimo ACK liniju “REGISTERED\n”
-                    var tmp = new byte[1];
+                    // Napravi pacijenta
+                    RegistracijaPacijenta r = new RegistracijaPacijenta();
+                   // KreirajZahtev kz = new KreirajZahtev();
+                    Pacijent p = r.Registracija();
+                    pr.DodajPacijenta(p);
+                    pr.SacuvajUFajl(p);
+                    JedinicaRepozitorijum repozitorijum = new JedinicaRepozitorijum();
+                    PronadjiPogodnuJedinicu pronadji = new PronadjiPogodnuJedinicu();
+
+                    // Pronalazak odgovarajuće jedinice na osnovu vrste zahteva pacijenta
+                    Jedinica pogodnaJedinica = pronadji.PronadjiPogodnu(p.VrsteZahteva, repozitorijum);
+
+                    Zahtev noviZahtev = null;
 
 
-                    byte[] ackbytes = new byte[1024];
-                    int bytesRecieved = sock.Receive(ackbytes);
-                    string ack = Encoding.UTF8.GetString(ackbytes, 0, bytesRecieved).Trim();
-                    if (ack != "REGISTERED")
+                    if (pogodnaJedinica != null)
                     {
-                        Console.WriteLine($"\nREGISTRACIJA NEUSPESNA");
+                        // Kreiranje zahteva sa idPacijenta i idJedinice
+                        noviZahtev = new Zahtev(p.LBO, pogodnaJedinica.IdJedinice, StatusZahteva.AKTIVAN);
+
+                        Console.WriteLine($"Zahtev za pacijenta {p.Ime} {p.Prezime} je kreiran.");
+                        Console.WriteLine($"Dodeljena jedinica ID: {pogodnaJedinica.IdJedinice}, Tip: {pogodnaJedinica.TipJedinice}");
                     }
                     else
                     {
-                        Console.WriteLine("\nUSPESNO REGISTROVAN");
+                        Console.WriteLine("Nema dostupnih jedinica za dati zahtev.");
                     }
 
-                    // Beskonacna petlja za READY;{tableNo};{waiterId}\n
+                    // Kreiraj DTO objekat koji sadrži i pacijenta i zahtev
+                    ZahtevPacijentDTO dto = new ZahtevPacijentDTO(p, noviZahtev);
 
-                    while (true)
+
+
+
+                    // Serijalizuj DTO objekat
+                    byte[] buffer;
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        byte[] buffer = new byte[1024];
-                        int r = sock.Receive(buffer);
-
-                        string line = Encoding.UTF8.GetString(buffer).Trim();
-
-                        if (line.StartsWith("POCETAK;"))
-                        {
-                            var parts = line.Split(';');
-                            int tableNo = int.Parse(parts[1]);
-                            string tipPorudzbine = parts[2];
-                            Console.WriteLine($"Porudžbina za sto {tableNo} je spremna! Nosim…");
-                            Thread.Sleep(1500);
-                            Console.WriteLine($"Porudžbina {tipPorudzbine} za sto {tableNo} je dostavljena.");
-                            orderSock.Send(Encoding.UTF8.GetBytes($"DELIVERED;{tableNo};{tipPorudzbine}"));
-
-                        }
-
+                        BinaryFormatter bf = new BinaryFormatter();
+                        bf.Serialize(ms, dto);
+                        buffer = ms.ToArray();
                     }
 
+                    // Pošalji DTO serveru
+                    socket.Send(buffer);
+                    Console.WriteLine("[Pacijent] Podaci poslati serveru.");
 
+                    // Primi odgovor
+                    byte[] ack = new byte[1024];
+                    int recv = socket.Receive(ack);
+                    string odgovor = Encoding.UTF8.GetString(ack, 0, recv);
+                    Console.WriteLine($"[Pacijent] Server kaže: {odgovor}");
+
+                    socket.Close();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[NotificationThread ERROR] {ex.Message}");
+                    Console.WriteLine($"[Pacijent ERROR] {ex.Message}");
                 }
             })
-            { IsBackground = true }
-  .Start();
-
-
+            { IsBackground = false }.Start();
         }
     }
 }

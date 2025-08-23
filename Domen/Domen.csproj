@@ -44,15 +44,25 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Enumeracije\Status.cs" />
+    <Compile Include="Enumeracije\StatusJedinice.cs" />
     <Compile Include="Enumeracije\StatusZahteva.cs" />
     <Compile Include="Enumeracije\TipJedinice.cs" />
     <Compile Include="Enumeracije\VrsteZahteva.cs" />
     <Compile Include="Klase\Jedinica.cs" />
     <Compile Include="Klase\Pacijent.cs" />
     <Compile Include="Klase\Zahtev.cs" />
+    <Compile Include="Klase\ZahtevPacijent.cs" />
+    <Compile Include="PomocneMetode\IspisPacijenta.cs" />
+    <Compile Include="PomocneMetode\IspisStatusa.cs" />
+    <Compile Include="PomocneMetode\IspisStatusaZahteva.cs" />
+    <Compile Include="PomocneMetode\IspisUsluge.cs" />
+    <Compile Include="PomocneMetode\KreiranjeInstanceJedinice.cs" />
+    <Compile Include="PomocneMetode\PronadjiPogodnuJedinicu.cs" />
     <Compile Include="PomocneMetode\RegistracijaPacijenta.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Repozitorijumi\JedinicaRepozitorijum\IJedinicaRepozitorijum.cs" />
+    <Compile Include="Repozitorijumi\JedinicaRepozitorijum\JedinicaRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\PacijentRepozitorijum\IPacijentRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\PacijentRepozitorijum\PacijentRepozitorijum.cs" />
   </ItemGroup>
