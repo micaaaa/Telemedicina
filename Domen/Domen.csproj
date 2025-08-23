@@ -43,14 +43,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Enumeracije\Status.cs" />
+    <Compile Include="Enumeracije\StatusZahteva.cs" />
+    <Compile Include="Enumeracije\TipJedinice.cs" />
+    <Compile Include="Enumeracije\VrsteZahteva.cs" />
+    <Compile Include="Klase\Jedinica.cs" />
+    <Compile Include="Klase\Pacijent.cs" />
+    <Compile Include="Klase\Zahtev.cs" />
+    <Compile Include="PomocneMetode\RegistracijaPacijenta.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Repozitorijumi\PacijentRepozitorijum\IPacijentRepozitorijum.cs" />
+    <Compile Include="Repozitorijumi\PacijentRepozitorijum\PacijentRepozitorijum.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Klase\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
