@@ -48,7 +48,7 @@ namespace Terapija
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
                                 // Simulacija operacije
-                                int trajanjeOperacije = 20000;
+                                int trajanjeOperacije = 30000;
                                 Console.WriteLine($"[Terapija] Terapija u toku... ({trajanjeOperacije} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
                                 Thread.Sleep(trajanjeOperacije);

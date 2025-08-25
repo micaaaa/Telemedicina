@@ -102,6 +102,7 @@ class Server
             {
                 zahtev = zahtevRepozitorijum.UzmiSledeciZahtevZaObradu();
             }
+            
 
             if (zahtev != null)
             {
@@ -137,7 +138,8 @@ class Server
 
                     // Pokreni jedinicu pre konekcije
                     kreiranjeInstance.PokreniJedinice(jedinica.TipJedinice);
-
+                    Pacijent pac = pacijentRepozitorijum.PronadjiPoLBO(zahtev.IdPacijenta);
+                    pacijentRepozitorijum.AzurirajStatusPacijenta(pac);
                     // Sačekaj da se jedinica pokrene i otvori port
                     Thread.Sleep(500);
 
@@ -148,19 +150,23 @@ class Server
                         using (NetworkStream ns = jedinicaClient.GetStream())
                         {
                             BinaryFormatter bf = new BinaryFormatter();
-
+                            
                             // Pošaljemo zahtev jedinici
                             bf.Serialize(ns, zahtev);
                             ns.Flush();
-
+                       
                             // Sačekaj odgovor
+                            Console.WriteLine($"Pacijent {pac.LBO} i status {pac.Status}");
                             RezultatLekar rezultatLekar = (RezultatLekar)bf.Deserialize(ns);
-
-                            Console.WriteLine($"[Server] Jedinica završila obradu: Pacijent ID: {rezultatLekar.IdPacijenta}, Rezultat: {rezultatLekar.OpisRezultata}");
-
-                            // Pronađi pacijenta prema ID-u
                             Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(rezultatLekar.IdPacijenta);
-                            ispisPacijenta.ispisiPacijenta(p);
+                            pacijentRepozitorijum.AzurirajStatusPacijenta(p);
+                            Console.WriteLine($"Pacijent {pac.LBO} i status {pac.Status}");
+                            Console.WriteLine($"[Server] Jedinica završila obradu: Pacijent ID: {rezultatLekar.IdPacijenta}");
+                            Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
+                            Console.WriteLine($"  Pacijent ID: {rezultatLekar.IdPacijenta}");
+                            Console.WriteLine($"  Vreme: {rezultatLekar.Vreme}");
+                            Console.WriteLine($"  Rezultat: {rezultatLekar.OpisRezultata}");
+
 
                             // Ukloni zahtev nakon završene obrade
                             zahtevRepozitorijum.UkloniZavrsenZahtev(zahtev);

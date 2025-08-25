@@ -11,8 +11,10 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
     public class PacijentRepozitorijum : IPacijentRepozitorijum
     {
         private static List<Pacijent> SviPacijenti = new List<Pacijent>();
-        private static List<Pacijent> PregledaniPacijenti = new List<Pacijent>();
 
+        public void postaviObradu(Pacijent p) { 
+        
+        }
         // Ažurira status pacijenta i prebacuje ga u Pregledane ako je obrađen
         public void AzurirajStatusPacijenta(Pacijent pac)
         {
@@ -22,27 +24,33 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
                 switch (pac.Status)
                 {
                     case Status.CEKANJE_OPERACIJE:
-                        p.Status = Status.OBAVLJENA_OPERACIJA;
+                        p.Status = Status.OPERACIJA_U_TOKU;
                         break;
                     case Status.CEKANJE_TERAPIJE:
-                        p.Status = Status.OBAVLJENA_TERAPIJA;
+                        p.Status = Status.TERAPIJA_U_TOKU;
                         break;
                     case Status.CEKANJE_PREGLEDA:
+                        p.Status = Status.PREGLED_U_TOKU;
+                        break;
+                    case Status.PREGLED_U_TOKU:
                         p.Status = Status.OBAVLJEN_PREGLED;
+                        break;
+                    case Status.OPERACIJA_U_TOKU:
+                        p.Status = Status.OBAVLJENA_OPERACIJA;
+                        break;
+                    case Status.TERAPIJA_U_TOKU:
+                        p.Status = Status.OBAVLJENA_TERAPIJA;
+
                         break;
                     default:
                         p.Status = pac.Status;
                         break;
                 }
 
-                if (p.Status == Status.OBAVLJENA_OPERACIJA || p.Status == Status.OBAVLJENA_TERAPIJA || p.Status == Status.OBAVLJEN_PREGLED)
-                {
-                    SviPacijenti.Remove(p);
-                    PregledaniPacijenti.Add(p);
-                }
+
             }
         }
-        
+
         // Dodaje novog pacijenta u aktivne
         public void DodajPacijenta(Pacijent p)
         {
@@ -60,13 +68,7 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
                 Console.WriteLine($"Pacijent: LBO: {p.LBO}, Ime: {p.Ime}, Prezime: {p.Prezime}, Adresa: {p.Adresa}, Vrsta zahteva: {iu.Ispisi(p.VrsteZahteva)}, Status: {iss.Ispisi(p.Status)}");
             }
 
-            Console.WriteLine("\nPregledani pacijenti:");
-            foreach (Pacijent p in PregledaniPacijenti)
-            {
-                IspisUsluge iu = new IspisUsluge();
-                IspisStatusa iss = new IspisStatusa();
-                Console.WriteLine($"Pacijent: LBO: {p.LBO}, Ime: {p.Ime}, Prezime: {p.Prezime}, Adresa: {p.Adresa}, Vrsta zahteva: {iu.Ispisi(p.VrsteZahteva)}, Status: {iss.Ispisi(p.Status)}");
-            }
+           
         }
 
         // Pronalaženje pacijenta po LBO u obe liste
@@ -76,9 +78,6 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
             if (p != null)
                 return p;
 
-            p = PregledaniPacijenti.Find(x => x.LBO == id);
-            if (p != null)
-                return p;
 
             return new Pacijent();
         }
@@ -91,33 +90,38 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
             using (FileStream fs = new FileStream(putanja, FileMode.Create))
             {
                 BinaryFormatter bf = new BinaryFormatter();
-                var sveListe = new Tuple<List<Pacijent>, List<Pacijent>>(SviPacijenti, PregledaniPacijenti);
+                var sveListe = new Tuple<List<Pacijent>>(SviPacijenti);
                 bf.Serialize(fs, sveListe);
             }
         }
 
-  
-
-        // Učitava obe liste iz fajla
         public void UcitajIzFajla()
         {
-            string putanja = "pacijenti.dat";
-
-            if (File.Exists(putanja))
-            {
-                using (FileStream fs = new FileStream(putanja, FileMode.Open))
-                {
-                    BinaryFormatter bf = new BinaryFormatter();
-                    var sveListe = (Tuple<List<Pacijent>, List<Pacijent>>)bf.Deserialize(fs);
-                    SviPacijenti = sveListe.Item1 ?? new List<Pacijent>();
-                    PregledaniPacijenti = sveListe.Item2 ?? new List<Pacijent>();
-                }
-            }
-            else
-            {
-                SviPacijenti = new List<Pacijent>();
-                PregledaniPacijenti = new List<Pacijent>();
-            }
+            throw new NotImplementedException();
         }
+
+
+
+        // Učitava obe liste iz fajla
+        /* public void UcitajIzFajla()
+         {
+             string putanja = "pacijenti.dat";
+
+             if (File.Exists(putanja))
+             {
+                 using (FileStream fs = new FileStream(putanja, FileMode.Open))
+                 {
+                     BinaryFormatter bf = new BinaryFormatter();
+                     var sveListe = (Tuple<List<Pacijent>, List<Pacijent>>)bf.Deserialize(fs);
+                     SviPacijenti = sveListe.Item1 ?? new List<Pacijent>();
+                     PregledaniPacijenti = sveListe.Item2 ?? new List<Pacijent>();
+                 }
+             }
+             else
+             {
+                 SviPacijenti = new List<Pacijent>();
+                 PregledaniPacijenti = new List<Pacijent>();
+             }
+         }*/
     }
 }

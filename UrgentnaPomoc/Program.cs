@@ -43,7 +43,7 @@ namespace UrgentnaPomoc
                                 Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
-                                int trajanjeOperacije = 20000;
+                                int trajanjeOperacije = 30000;
                                 Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
                                 Thread.Sleep(trajanjeOperacije);
@@ -58,11 +58,7 @@ namespace UrgentnaPomoc
 
                                 RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
 
-                                Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
-                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
-                                Console.WriteLine($"  Vreme: {rl.Vreme}");
-                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
-
+                               
                                 // Pošaljemo RezultatLekar nazad serveru umesto Zahteva
                                 formatter.Serialize(ns, rl);
                                 ns.Flush();
