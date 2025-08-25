@@ -16,5 +16,9 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
         void ispisisSve();
        void SacuvajUFajl(Pacijent p);
         void UcitajIzFajla();
+        List<Pacijent> VratiSve();
+        void DodajObradjenogPacijenta(Pacijent p);
+        List<Pacijent> VratiSveObradjene();
+        void UkloniObradjenog(Pacijent p);
     }
 }

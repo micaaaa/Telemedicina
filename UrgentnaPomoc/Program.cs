@@ -43,7 +43,7 @@ namespace UrgentnaPomoc
                                 Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
-                                int trajanjeOperacije = 30000;
+                                int trajanjeOperacije = 20000;
                                 Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
                                 Thread.Sleep(trajanjeOperacije);

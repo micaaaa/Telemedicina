@@ -66,6 +66,8 @@
     <Compile Include="Repozitorijumi\JedinicaRepozitorijum\JedinicaRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\PacijentRepozitorijum\IPacijentRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\PacijentRepozitorijum\PacijentRepozitorijum.cs" />
+    <Compile Include="Repozitorijumi\RezultatRepozitorijum\IRezultatRepozitorijum.cs" />
+    <Compile Include="Repozitorijumi\RezultatRepozitorijum\RezultatRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\ZahtevRepozitorijum\IZahtevRepozitorijum.cs" />
     <Compile Include="Repozitorijumi\ZahtevRepozitorijum\ZahtevRepozitorijum.cs" />
   </ItemGroup>

@@ -45,7 +45,7 @@ namespace Dijagnostika
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
                                 // Simulacija dijagnoze
-                                int trajanjeDijagnoze = 30000;
+                                int trajanjeDijagnoze = 20000;
                                 Console.WriteLine($"[Dijagnostika] Dijagnostika u toku... ({trajanjeDijagnoze} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
                                 Thread.Sleep(trajanjeDijagnoze);

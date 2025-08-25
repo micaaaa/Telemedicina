@@ -11,7 +11,7 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
     public class PacijentRepozitorijum : IPacijentRepozitorijum
     {
         private static List<Pacijent> SviPacijenti = new List<Pacijent>();
-
+        private static List<Pacijent> obradjeniPacijenti=new List<Pacijent>();
         public void postaviObradu(Pacijent p) { 
         
         }
@@ -56,6 +56,10 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
         {
             SviPacijenti.Add(p);
         }
+        public void DodajObradjenogPacijenta(Pacijent p)
+        {
+            obradjeniPacijenti.Add(p);
+        }
 
         // Ispisuje oba spiska - aktivne i pregledane
         public void ispisisSve()
@@ -70,6 +74,14 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
 
            
         }
+        public List<Pacijent> VratiSve() {
+            return SviPacijenti;
+        }
+        public List<Pacijent> VratiSveObradjene()
+        {
+            return obradjeniPacijenti;
+        }
+
 
         // Pronalaženje pacijenta po LBO u obe liste
         public Pacijent PronadjiPoLBO(int id)
@@ -98,6 +110,11 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
         public void UcitajIzFajla()
         {
             throw new NotImplementedException();
+        }
+
+        public void UkloniObradjenog(Pacijent p)
+        {
+            obradjeniPacijenti.Remove(p);
         }
 
 

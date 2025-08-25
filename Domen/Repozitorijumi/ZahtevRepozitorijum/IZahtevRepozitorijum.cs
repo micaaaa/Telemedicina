@@ -12,6 +12,7 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
          void DodajZahtev(Zahtev zahtev);
          void UkloniZavrsenZahtev(Zahtev zahtev);
          Zahtev UzmiSledeciZahtevZaObradu();
+    
         //void pronadjiPoId(Zahtev zahtev);
     }
 }

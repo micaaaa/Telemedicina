@@ -11,5 +11,6 @@ namespace Domen.Repozitorijumi.JedinicaRepozitorijum
     public interface IJedinicaRepozitorijum
     {
         Jedinica PronadjiJedinicu(int id);
+        
     }
 }

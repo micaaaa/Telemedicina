@@ -38,24 +38,24 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
         {
             lock (lockObj)
             {
-                // 1. Pronađi urgentne
-                var urgentni = zahtevi
-                    .FirstOrDefault(z =>
-                    {
+                // 1. Uzmi prvi urgentni zahtev ako postoji
+                var urgentniZahtevi = zahtevi
+                    .Where(z => {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
                         return pac != null && pac.VrsteZahteva == VrsteZahteva.URGENTA_POMOC;
-                    });
+                    })
+                    .ToList();
 
-                if (urgentni != null)
+                if (urgentniZahtevi.Count > 0)
                 {
-                    zahtevi.Remove(urgentni);
-                    return urgentni;
+                    var prviUrgentni = urgentniZahtevi[0];
+                    zahtevi.Remove(prviUrgentni);
+                    return prviUrgentni;
                 }
 
-                // 2. Ako nema urgentnih, traži pregled ili terapiju
+                // 2. Uzmi prvi zahtev koji je PREGLED ili TERAPIJA
                 var pregledIliTerapija = zahtevi
-                    .FirstOrDefault(z =>
-                    {
+                    .FirstOrDefault(z => {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
                         return pac != null &&
                                (pac.VrsteZahteva == VrsteZahteva.PREGLED || pac.VrsteZahteva == VrsteZahteva.TERAPIJA);
@@ -67,6 +67,15 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                     return pregledIliTerapija;
                 }
 
+                // 3. Na kraju, uzmi prvi zahtev bilo kog drugog tipa (ostali)
+                if (zahtevi.Count > 0)
+                {
+                    var prvi = zahtevi[0];
+                    zahtevi.RemoveAt(0);
+                    return prvi;
+                }
+
+                // Nema zahteva
                 return null;
             }
         }
@@ -79,5 +88,7 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                 return zahtevi.Count > 0;
             }
         }
+
+
     }
 }
