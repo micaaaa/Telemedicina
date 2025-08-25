@@ -57,7 +57,19 @@ namespace Terapija
                                 zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
 
                                 // Pošalji nazad ceo objekat zahtev serveru
-                                formatter.Serialize(ns, zahtev);
+
+                                DateTime vreme = DateTime.Now;
+                                Random rand = new Random();
+                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.TERAPIJA_USPESNA : OpisRezultata.TERAPIJA_NEUSPESNA;
+
+                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
+
+                                Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
+                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
+                                Console.WriteLine($"  Vreme: {rl.Vreme}");
+                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
+
+                                formatter.Serialize(ns, rl);
                                 ns.Flush();
 
                                 Console.WriteLine("[Terapija] Poslat ažurirani zahtev serveru.");

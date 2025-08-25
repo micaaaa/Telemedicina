@@ -38,14 +38,13 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
         {
             lock (lockObj)
             {
-                // Prvo pronađi urgentne zahteve
+                // 1. Pronađi urgentne
                 var urgentni = zahtevi
-                    .Where(z =>
+                    .FirstOrDefault(z =>
                     {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
-                        return pac != null && pac.VrsteZahteva.HasFlag(VrsteZahteva.URGENTA_POMOC);
-                    })
-                    .FirstOrDefault();
+                        return pac != null && pac.VrsteZahteva == VrsteZahteva.URGENTA_POMOC;
+                    });
 
                 if (urgentni != null)
                 {
@@ -53,26 +52,26 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                     return urgentni;
                 }
 
-                // Ako nema urgentnih, uzmi prvi pregled ili terapiju po redosledu dodavanja (FIFO)
+                // 2. Ako nema urgentnih, traži pregled ili terapiju
                 var pregledIliTerapija = zahtevi
-                    .Where(z =>
+                    .FirstOrDefault(z =>
                     {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
                         return pac != null &&
-                            (pac.VrsteZahteva.HasFlag(VrsteZahteva.PREGLED) || pac.VrsteZahteva.HasFlag(VrsteZahteva.TERAPIJA));
-                    })
-                    .FirstOrDefault();
+                               (pac.VrsteZahteva == VrsteZahteva.PREGLED || pac.VrsteZahteva == VrsteZahteva.TERAPIJA);
+                    });
 
                 if (pregledIliTerapija != null)
                 {
                     zahtevi.Remove(pregledIliTerapija);
+                    return pregledIliTerapija;
                 }
 
-                return pregledIliTerapija;
+                return null;
             }
         }
 
-        // Dodatno, možeš dodati metodu da vidiš ima li još zahteva (za kontrolu loopa)
+
         public bool ImaZahteva()
         {
             lock (lockObj)

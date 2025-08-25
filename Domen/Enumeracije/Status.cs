@@ -13,6 +13,9 @@ namespace Domen.Enumeracije
         CEKANJE_PREGLEDA,
         OBAVLJENA_TERAPIJA,
         OBAVLJEN_PREGLED,
-        OBAVLJENA_OPERACIJA
+        OBAVLJENA_OPERACIJA,
+        TERAPIJA_U_TOKU,
+        OPERACIJA_U_TOKU,
+        PREGLED_U_TOKU
     }
 }

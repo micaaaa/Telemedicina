@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Enumeracije\OpisRezultata.cs" />
     <Compile Include="Enumeracije\Status.cs" />
     <Compile Include="Enumeracije\StatusJedinice.cs" />
     <Compile Include="Enumeracije\StatusZahteva.cs" />
@@ -50,8 +51,8 @@
     <Compile Include="Enumeracije\VrsteZahteva.cs" />
     <Compile Include="Klase\Jedinica.cs" />
     <Compile Include="Klase\Pacijent.cs" />
+    <Compile Include="Klase\RezultatLekar.cs" />
     <Compile Include="Klase\Zahtev.cs" />
-    <Compile Include="Klase\ZahtevPacijent.cs" />
     <Compile Include="PomocneMetode\IspisPacijenta.cs" />
     <Compile Include="PomocneMetode\IspisStatusa.cs" />
     <Compile Include="PomocneMetode\IspisStatusaZahteva.cs" />

@@ -149,16 +149,17 @@ class Server
                         {
                             BinaryFormatter bf = new BinaryFormatter();
 
-                            // Pošalji zahtev jedinici
+                            // Pošaljemo zahtev jedinici
                             bf.Serialize(ns, zahtev);
                             ns.Flush();
 
                             // Sačekaj odgovor
-                            Zahtev odgovorZahtev = (Zahtev)bf.Deserialize(ns);
+                            RezultatLekar rezultatLekar = (RezultatLekar)bf.Deserialize(ns);
 
-                            Console.WriteLine($"[Server] Jedinica završila obradu: LBO: {odgovorZahtev.IdPacijenta}, Status: {odgovorZahtev.StatusZahteva}");
+                            Console.WriteLine($"[Server] Jedinica završila obradu: Pacijent ID: {rezultatLekar.IdPacijenta}, Rezultat: {rezultatLekar.OpisRezultata}");
 
-                            Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(odgovorZahtev.IdPacijenta);
+                            // Pronađi pacijenta prema ID-u
+                            Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(rezultatLekar.IdPacijenta);
                             ispisPacijenta.ispisiPacijenta(p);
 
                             // Ukloni zahtev nakon završene obrade
@@ -177,6 +178,4 @@ class Server
             }
         }
     }
-
-
 }

@@ -43,7 +43,6 @@ namespace UrgentnaPomoc
                                 Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
-
                                 int trajanjeOperacije = 20000;
                                 Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
@@ -52,11 +51,23 @@ namespace UrgentnaPomoc
                                 // Ažuriraj status zahteva
                                 zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
 
-                                // Pošalji nazad ceo objekat zahtev serveru
-                                formatter.Serialize(ns, zahtev);
+                                // Kreiraj RezultatLekar objekat
+                                DateTime vreme = DateTime.Now;
+                                Random rand = new Random();
+                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.OPERACIJA_USPESNA : OpisRezultata.OPERACIJA_NEUSPESNA;
+
+                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
+
+                                Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
+                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
+                                Console.WriteLine($"  Vreme: {rl.Vreme}");
+                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
+
+                                // Pošaljemo RezultatLekar nazad serveru umesto Zahteva
+                                formatter.Serialize(ns, rl);
                                 ns.Flush();
 
-                                Console.WriteLine("[UrgentnaJedinica] Poslat ažurirani zahtev serveru.");
+                                Console.WriteLine("[UrgentnaJedinica] Poslat rezultat lekara serveru.");
                             }
                         }
                         catch (Exception ex)

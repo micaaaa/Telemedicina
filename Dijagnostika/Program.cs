@@ -1,15 +1,13 @@
 ﻿using Domen.Enumeracije;
 using Domen.Klase;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 namespace Dijagnostika
 {
     public class Program
@@ -22,7 +20,7 @@ namespace Dijagnostika
             {
                 TcpListener listener = new TcpListener(IPAddress.Any, port);
                 listener.Start();
-                Console.WriteLine("[Dijagnostika] Jedinica sluša na portu 6001...");
+                Console.WriteLine("[Dijagnostika] Jedinica sluša na portu 6002...");
 
                 while (true)
                 {
@@ -46,20 +44,32 @@ namespace Dijagnostika
                                 Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
                                 Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
 
-                                // Simulacija operacije
-                                int trajanjeOperacije = 20000;
-                                Console.WriteLine($"[Dijagnostika] Dijagnostika u toku... ({trajanjeOperacije} ms)");
+                                // Simulacija dijagnoze
+                                int trajanjeDijagnoze = 20000;
+                                Console.WriteLine($"[Dijagnostika] Dijagnostika u toku... ({trajanjeDijagnoze} ms)");
                                 zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
-                                Thread.Sleep(trajanjeOperacije);
+                                Thread.Sleep(trajanjeDijagnoze);
 
                                 // Ažuriraj status zahteva
                                 zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
 
-                                // Pošalji nazad ceo objekat zahtev serveru
-                                formatter.Serialize(ns, zahtev);
+                                // Kreiraj RezultatLekar objekat
+                                DateTime vreme = DateTime.Now;
+                                Random rand = new Random();
+                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.DIJAGNOZA_USTANOVLJENA : OpisRezultata.DIJAGNOZA_NIJE_USTANOVLJENA;
+
+                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
+
+                                Console.WriteLine("[Dijagnostika] Poslat rezultat lekara:");
+                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
+                                Console.WriteLine($"  Vreme: {rl.Vreme}");
+                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
+
+                                // Pošaljemo RezultatLekar nazad serveru umesto Zahteva
+                                formatter.Serialize(ns, rl);
                                 ns.Flush();
 
-                                Console.WriteLine("[Dijagnostika] Poslat ažurirani zahtev serveru.");
+                                Console.WriteLine("[Dijagnostika] Poslat rezultat lekara serveru.");
                             }
                         }
                         catch (Exception ex)
