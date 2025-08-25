@@ -156,13 +156,12 @@ class Server
                             ns.Flush();
                        
                             // Sačekaj odgovor
-                            Console.WriteLine($"Pacijent {pac.LBO} i status {pac.Status}");
                             RezultatLekar rezultatLekar = (RezultatLekar)bf.Deserialize(ns);
                             Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(rezultatLekar.IdPacijenta);
                             pacijentRepozitorijum.AzurirajStatusPacijenta(p);
-                            Console.WriteLine($"Pacijent {pac.LBO} i status {pac.Status}");
+
                             Console.WriteLine($"[Server] Jedinica završila obradu: Pacijent ID: {rezultatLekar.IdPacijenta}");
-                            Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
+                            Console.WriteLine($"[Server] Poslat rezultat lekara:");
                             Console.WriteLine($"  Pacijent ID: {rezultatLekar.IdPacijenta}");
                             Console.WriteLine($"  Vreme: {rezultatLekar.Vreme}");
                             Console.WriteLine($"  Rezultat: {rezultatLekar.OpisRezultata}");
@@ -184,4 +183,5 @@ class Server
             }
         }
     }
+
 }
