@@ -107,6 +107,11 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
             }
         }
 
+        public List<Zahtev> VratiSve()
+        {
+            return zahtevi;
+        }
+
         public void IspisiZahtev(Zahtev zahtev)
         {
             Console.WriteLine();

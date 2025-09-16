@@ -42,6 +42,7 @@ class Server
         new Thread(ObradaZahtevaLoop) { IsBackground = true }.Start();
         // Pokrećemo slanje podataka lekaru u posebnoj niti
         new Thread(SlanjePacijenataLekaruLoop) { IsBackground = true }.Start();
+        new Thread(DinamickoOsvezavanje) { IsBackground = true }.Start();
 
         while (true)
         {
@@ -432,24 +433,74 @@ class Server
                 }
             }
 
-            foreach (var pacijentAzuriran in azuriraniPacijenti)
-            {
-                if (pacijentAzuriran.Status == Status.CEKANJE_PREGLEDA||
-                    pacijentAzuriran.Status == Status.CEKANJE_OPERACIJE||
-         pacijentAzuriran.Status == Status.CEKANJE_TERAPIJE||
-         pacijentAzuriran.Status == Status.OBAVLJENA_OPERACIJA||
-         pacijentAzuriran.Status == Status.OBAVLJEN_PREGLED ||
+              foreach (var pacijentAzuriran in azuriraniPacijenti)
+{
+    if (pacijentAzuriran.Status == Status.CEKANJE_PREGLEDA ||
+        pacijentAzuriran.Status == Status.CEKANJE_OPERACIJE ||
+        pacijentAzuriran.Status == Status.CEKANJE_TERAPIJE ||
+        pacijentAzuriran.Status == Status.OBAVLJENA_OPERACIJA ||
+        pacijentAzuriran.Status == Status.OBAVLJEN_PREGLED ||
         pacijentAzuriran.Status == Status.OBAVLJENA_TERAPIJA)
     {
-                    var zaBrisanje = pacijentRepozitorijum.VratiSveObradjene()
-                        .Find(p => p.LBO == pacijentAzuriran.LBO);
-                    if (zaBrisanje != null)
-                    {
-                        pacijentRepozitorijum.UkloniObradjenog(zaBrisanje);
-                        Console.WriteLine($"[Server] Uklonjen pacijent {zaBrisanje.LBO} iz obradjenih.");
-                    }
-                }
-            }
+        var zaBrisanje = pacijentRepozitorijum.VratiSveObradjene()
+            .Find(p => p.LBO == pacijentAzuriran.LBO);
+        
+        if (zaBrisanje != null)
+        {
+            pacijentRepozitorijum.UkloniObradjenog(zaBrisanje);
+            Console.WriteLine($"[Server] Uklonjen pacijent {zaBrisanje.LBO} iz obradjenih.");
         }
-    
+    }
+}
+        }
+
+    static void IspisiPacijente()
+    {
+        Console.SetCursorPosition(0, 2); // Postavljanje kursora na poziciju za osvežavanje
+
+        Console.WriteLine("Pacijenti: ");
+        Console.WriteLine("------------------------------------------------");
+        Console.WriteLine("| LBO        | Ime i Prezime    | Status       |");
+        Console.WriteLine("------------------------------------------------");
+
+        List<Pacijent> pacijenti = pacijentRepozitorijum.VratiSve(); // Pretpostavljamo da imaš metodu koja vraća sve pacijente
+
+        foreach (var pacijent in pacijenti)
+        {
+            Console.WriteLine($"| {pacijent.LBO,-10} | {pacijent.Ime} {pacijent.Prezime,-15} | {pacijent.Status,-12} |");
+        }
+
+        Console.WriteLine("------------------------------------------------");
+    }
+    static void IspisiJedinice()
+    {
+        Console.SetCursorPosition(0, 10); // Postavljanje kursora na poziciju za osvežavanje
+
+        Console.WriteLine("Jedinice: ");
+        Console.WriteLine("------------------------------------------------");
+        Console.WriteLine("| ID Jedinice | Tip Jedinice  | Status       |");
+        Console.WriteLine("------------------------------------------------");
+
+        List<Jedinica> jedinice = jedinicaRepozitorijum.VratiSve(); // Pretpostavljamo da imaš metodu koja vraća sve jedinice
+
+        foreach (var jedinica in jedinice)
+        {
+            Console.WriteLine($"| {jedinica.IdJedinice,-12} | {jedinica.TipJedinice,-12} | {jedinica.Status,-12} |");
+        }
+
+        Console.WriteLine("------------------------------------------------");
+    }
+    static void DinamickoOsvezavanje()
+    {
+        while (true)
+        {
+            IspisiPacijente();
+            IspisiJedinice();
+
+            // Pauza od 5 sekundi pre sledećeg osvežavanja
+            Thread.Sleep(5000);
+        }
+    }
+
+
 }

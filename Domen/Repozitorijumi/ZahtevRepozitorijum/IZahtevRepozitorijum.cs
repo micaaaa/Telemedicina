@@ -14,5 +14,6 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
          Zahtev UzmiSledeciZahtevZaObradu();
         void AzurirajZahtev(Zahtev zahtev);
         void IspisiZahtev(Zahtev zahtev);
+        List<Zahtev> VratiSve();
     }
 }
