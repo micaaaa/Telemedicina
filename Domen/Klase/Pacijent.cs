@@ -28,6 +28,10 @@ namespace Domen.Klase
             VrsteZahteva = vrsteZahteva;
             Status = status;
         }
- 
+
+        public override string ToString()
+        {
+            return base.ToString();
+        }
     }
 }

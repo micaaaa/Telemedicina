@@ -1,12 +1,15 @@
 ﻿using Domen.Enumeracije;
 using Domen.Klase;
+using Domen.Repozitorijumi.JedinicaRepozitorijum;
+using Domen.Repozitorijumi.PacijentRepozitorijum;
+using Domen.Repozitorijumi.RezultatRepozitorijum;
+using Domen.Repozitorijumi.ZahtevRepozitorijum;
 using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Dijagnostika
 {
@@ -15,61 +18,91 @@ namespace Dijagnostika
         static void Main(string[] args)
         {
             int port = 6002;
+            IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
+
+            IPacijentRepozitorijum pacijentRepozitorijum = new PacijentRepozitorijum();
+            IZahtevRepozitorijum zahtevRepozitorijum = new ZahtevRepozitorijum(pacijentRepozitorijum);
+            IRezultatRepozitorijum rezultatRepozitorijum = new RezultatRepozitorijum();
+
+            Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             try
             {
-                TcpListener listener = new TcpListener(IPAddress.Any, port);
-                listener.Start();
+                listener.Bind(localEndPoint);
+                listener.Listen(10);
+
                 Console.WriteLine("[Dijagnostika] Jedinica sluša na portu 6002...");
 
                 while (true)
                 {
-                    TcpClient client = listener.AcceptTcpClient();
+                    Socket clientSocket = listener.Accept();
                     Console.WriteLine("[Dijagnostika] Primljena konekcija.");
 
                     new Thread(() =>
                     {
                         try
                         {
+                            byte[] buffer = new byte[8192];
+                            int received = clientSocket.Receive(buffer);
+
                             Zahtev zahtev;
+                            Pacijent pacijent;
 
-                            using (NetworkStream ns = client.GetStream())
+                            using (MemoryStream msReceive = new MemoryStream(buffer, 0, received))
                             {
-                                // Direktno deserijalizuj sa NetworkStream (bez ručnog čitanja bajtova)
                                 BinaryFormatter formatter = new BinaryFormatter();
-                                zahtev = (Zahtev)formatter.Deserialize(ns);
+                                var tuple = (Tuple<Zahtev, Pacijent>)formatter.Deserialize(msReceive);
+                                zahtev = tuple.Item1;
+                                pacijent = tuple.Item2;
+                            }
 
-                                Console.WriteLine($"[Dijagnostika] Primljen zahtev:");
-                                Console.WriteLine($"  Pacijent ID: {zahtev.IdPacijenta}");
-                                Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
-                                Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
+                            zahtevRepozitorijum.IspisiZahtev(zahtev);
+                            pacijentRepozitorijum.IspisiPacijenta(pacijent);
 
-                                // Simulacija dijagnoze
-                                int trajanjeDijagnoze = 20000;
-                                Console.WriteLine($"[Dijagnostika] Dijagnostika u toku... ({trajanjeDijagnoze} ms)");
-                                zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
-                                Thread.Sleep(trajanjeDijagnoze);
+                            int trajanjeDijagnoze = 20000;
+                            Console.WriteLine($"[Dijagnostika] Dijagnostika u toku... ({trajanjeDijagnoze} ms)");
+                            zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
+                            Thread.Sleep(trajanjeDijagnoze);
+                            zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
 
-                                // Ažuriraj status zahteva
-                                zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
+                            // Ručni unos rezultata
+                            OpisRezultata opis;
+                            while (true)
+                            {
+                                Console.WriteLine("Unesite ishod dijagnoze:");
+                                Console.WriteLine("1 - Dijagnoza ustanovljena");
+                                Console.WriteLine("2 - Dijagnoza nije ustanovljena");
+                                string unos = Console.ReadLine();
 
-                                // Kreiraj RezultatLekar objekat
-                                DateTime vreme = DateTime.Now;
-                                Random rand = new Random();
-                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.DIJAGNOZA_USTANOVLJENA : OpisRezultata.DIJAGNOZA_NIJE_USTANOVLJENA;
+                                if (unos == "1")
+                                {
+                                    opis = OpisRezultata.DIJAGNOZA_USTANOVLJENA;
+                                    break;
+                                }
+                                else if (unos == "2")
+                                {
+                                    opis = OpisRezultata.DIJAGNOZA_NIJE_USTANOVLJENA;
+                                    break;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Nevažeći unos. Pokušajte ponovo.");
+                                }
+                            }
 
-                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
+                            RezultatLekar rezultat = new RezultatLekar(zahtev.IdPacijenta, DateTime.Now, opis);
 
-                                Console.WriteLine("[Dijagnostika] Poslat rezultat lekara:");
-                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
-                                Console.WriteLine($"  Vreme: {rl.Vreme}");
-                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
+                            Console.WriteLine("[Dijagnostika] Poslat rezultat:");
+                            rezultatRepozitorijum.IspisiRezultat(rezultat);
 
-                                // Pošaljemo RezultatLekar nazad serveru umesto Zahteva
-                                formatter.Serialize(ns, rl);
-                                ns.Flush();
+                            using (MemoryStream msSend = new MemoryStream())
+                            {
+                                BinaryFormatter formatter = new BinaryFormatter();
+                                formatter.Serialize(msSend, rezultat);
+                                byte[] rezultatBytes = msSend.ToArray();
 
-                                Console.WriteLine("[Dijagnostika] Poslat rezultat lekara serveru.");
+                                clientSocket.Send(rezultatBytes);
+                                clientSocket.Shutdown(SocketShutdown.Send);
                             }
                         }
                         catch (Exception ex)
@@ -78,7 +111,9 @@ namespace Dijagnostika
                         }
                         finally
                         {
-                            client.Close();
+                            if (clientSocket.Connected)
+                                clientSocket.Shutdown(SocketShutdown.Both);
+                            clientSocket.Close();
                         }
                     }).Start();
                 }

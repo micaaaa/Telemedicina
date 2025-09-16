@@ -23,7 +23,7 @@ namespace Domen.PomocneMetode
                 case TipJedinice.URGENTNA:
                     unitPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                         "..", "..", "..", "UrgentnaPomoc", "bin", "Debug", "UrgentnaPomoc.exe");
-                    processName = "UrgentnaPomoc"; // ime procesa bez ekstenzije
+                    processName = "UrgentnaPomoc"; 
                     break;
                 case TipJedinice.DIJAGNOSTICKA:
                     unitPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
@@ -39,7 +39,6 @@ namespace Domen.PomocneMetode
                     throw new ArgumentException($"Nepoznat tip jedinice: {tipJedinice}", nameof(tipJedinice));
             }
 
-            // Provera da li je proces već pokrenut
             if (Process.GetProcessesByName(processName).Length > 0)
             {
                 Console.WriteLine($"Jedinica {tipJedinice} je već pokrenuta.");

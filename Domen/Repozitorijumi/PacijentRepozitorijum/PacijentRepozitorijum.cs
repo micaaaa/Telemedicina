@@ -12,10 +12,10 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
     {
         private static List<Pacijent> SviPacijenti = new List<Pacijent>();
         private static List<Pacijent> obradjeniPacijenti=new List<Pacijent>();
-        public void postaviObradu(Pacijent p) { 
-        
-        }
-        // Ažurira status pacijenta i prebacuje ga u Pregledane ako je obrađen
+        static object lockrep = new object();
+
+
+
         public void AzurirajStatusPacijenta(Pacijent pac)
         {
             Pacijent p = SviPacijenti.Find(x => x.LBO == pac.LBO);
@@ -51,39 +51,44 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
             }
         }
 
-        // Dodaje novog pacijenta u aktivne
         public void DodajPacijenta(Pacijent p)
         {
-            SviPacijenti.Add(p);
+            lock (lockrep)
+            {
+                SviPacijenti.Add(p);
+            }
         }
         public void DodajObradjenogPacijenta(Pacijent p)
         {
             obradjeniPacijenti.Add(p);
         }
 
-        // Ispisuje oba spiska - aktivne i pregledane
         public void ispisisSve()
         {
-            Console.WriteLine("Aktivni pacijenti:");
-            foreach (Pacijent p in SviPacijenti)
+            lock (lockrep)
             {
-                IspisUsluge iu = new IspisUsluge();
-                IspisStatusa iss = new IspisStatusa();
-                Console.WriteLine($"Pacijent: LBO: {p.LBO}, Ime: {p.Ime}, Prezime: {p.Prezime}, Adresa: {p.Adresa}, Vrsta zahteva: {iu.Ispisi(p.VrsteZahteva)}, Status: {iss.Ispisi(p.Status)}");
+                Console.WriteLine("Aktivni pacijenti:");
+                foreach (Pacijent p in SviPacijenti)
+                {
+                    IspisUsluge iu = new IspisUsluge();
+                    IspisStatusa iss = new IspisStatusa();
+                    Console.WriteLine($"Pacijent: LBO: {p.LBO}, Ime: {p.Ime}, Prezime: {p.Prezime}, Adresa: {p.Adresa}, Vrsta zahteva: {iu.Ispisi(p.VrsteZahteva)}, Status: {iss.Ispisi(p.Status)}");
+                }
             }
-
            
         }
         public List<Pacijent> VratiSve() {
-            return SviPacijenti;
+            lock (lockrep)
+            {
+              
+                return SviPacijenti;
+            }
         }
         public List<Pacijent> VratiSveObradjene()
         {
             return obradjeniPacijenti;
         }
 
-
-        // Pronalaženje pacijenta po LBO u obe liste
         public Pacijent PronadjiPoLBO(int id)
         {
             Pacijent p = SviPacijenti.Find(x => x.LBO == id);
@@ -94,8 +99,8 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
             return new Pacijent();
         }
 
-        // Čuva obe liste u fajl
-        public void SacuvajUFajl(Pacijent p)
+
+        public void SacuvajUFajl()
         {
             string putanja = "pacijenti.dat";
 
@@ -107,38 +112,104 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
             }
         }
 
-        public void UcitajIzFajla()
+        public List<Pacijent> UcitajIzFajla()
         {
-            throw new NotImplementedException();
-        }
+            lock (lockrep)
+            {
+                string putanja = "pacijenti.dat";
 
+                if (!File.Exists(putanja))
+                {
+                    Console.WriteLine("[Repozitorijum] Fajl sa pacijentima ne postoji. Kreira se prazan repozitorijum.");
+                    SviPacijenti = new List<Pacijent>();
+                    return SviPacijenti;
+                }
+
+                try
+                {
+                    using (FileStream fs = new FileStream(putanja, FileMode.Open))
+                    {
+                        BinaryFormatter bf = new BinaryFormatter();
+                        var sveListe = (Tuple<List<Pacijent>>)bf.Deserialize(fs);
+                        SviPacijenti = sveListe.Item1 ?? new List<Pacijent>();
+
+
+                    }
+                    return SviPacijenti;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Repozitorijum ERROR] Neuspešno učitavanje pacijenata: {ex.Message}");
+                    SviPacijenti = new List<Pacijent>();
+                    return SviPacijenti;
+                }
+            }
+        }
+        public void UcitajIzFajlaObradjene()
+        {
+            string putanja = "pacijentiobradjeni.dat";
+
+            if (!File.Exists(putanja))
+            {
+                Console.WriteLine("[Repozitorijum] Fajl sa pacijentima ne postoji. Kreira se prazan repozitorijum.");
+                SviPacijenti = new List<Pacijent>();
+                return;
+            }
+
+            try
+            {
+                using (FileStream fs = new FileStream(putanja, FileMode.Open))
+                {
+                    BinaryFormatter bf = new BinaryFormatter();
+                    var sveListe = (Tuple<List<Pacijent>>)bf.Deserialize(fs);
+                    obradjeniPacijenti = sveListe.Item1 ?? new List<Pacijent>();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Repozitorijum ERROR] Neuspešno učitavanje pacijenata: {ex.Message}");
+                obradjeniPacijenti = new List<Pacijent>(); 
+            }
+        }
+        public void SacuvajUFajlObradjene()
+        {
+            string putanja = "pacijentiobradjeni.dat";
+
+            using (FileStream fs = new FileStream(putanja, FileMode.Create))
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                var sveListe = new Tuple<List<Pacijent>>(obradjeniPacijenti);
+                bf.Serialize(fs, sveListe);
+            }
+        }
         public void UkloniObradjenog(Pacijent p)
         {
-            obradjeniPacijenti.Remove(p);
+            lock (lockrep)
+            {
+                obradjeniPacijenti.Remove(p);
+            }
+           
+        }
+        public void UkloniObradjenog2(Pacijent p)
+        {
+            SviPacijenti.Remove(p);
+            SacuvajUFajl();
+
+        }
+        public void IspisiPacijenta(Pacijent pacijent)
+        {
+
+            Console.WriteLine();
+            Console.WriteLine("================================ PACIJENT ==================================");
+            Console.WriteLine("| LBO   | Ime        | Prezime     | Vrsta zahteva     | Status           |");
+            Console.WriteLine("|-------|------------|-------------|--------------------|------------------|");
+            Console.WriteLine($"| {pacijent.LBO,-5} | {pacijent.Ime,-10} | {pacijent.Prezime,-11} | {pacijent.VrsteZahteva,-18} | {pacijent.Status,-16} |");
+            Console.WriteLine("============================================================================");
+            Console.WriteLine();
         }
 
 
 
-        // Učitava obe liste iz fajla
-        /* public void UcitajIzFajla()
-         {
-             string putanja = "pacijenti.dat";
-
-             if (File.Exists(putanja))
-             {
-                 using (FileStream fs = new FileStream(putanja, FileMode.Open))
-                 {
-                     BinaryFormatter bf = new BinaryFormatter();
-                     var sveListe = (Tuple<List<Pacijent>, List<Pacijent>>)bf.Deserialize(fs);
-                     SviPacijenti = sveListe.Item1 ?? new List<Pacijent>();
-                     PregledaniPacijenti = sveListe.Item2 ?? new List<Pacijent>();
-                 }
-             }
-             else
-             {
-                 SviPacijenti = new List<Pacijent>();
-                 PregledaniPacijenti = new List<Pacijent>();
-             }
-         }*/
     }
 }

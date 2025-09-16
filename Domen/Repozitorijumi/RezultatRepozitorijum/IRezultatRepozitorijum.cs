@@ -15,5 +15,6 @@ namespace Domen.Repozitorijumi.RezultatRepozitorijum
         void ukloniRezultat(RezultatLekar r);
         RezultatLekar pronadjiRezultat(int id);
         List<RezultatLekar> vratiSve();
+        void IspisiRezultat(RezultatLekar rezultat);
     }
 }

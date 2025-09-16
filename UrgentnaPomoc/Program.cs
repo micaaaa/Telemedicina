@@ -1,11 +1,14 @@
-﻿using System;
+﻿using Domen.Enumeracije;
+using Domen.Klase;
+using Domen.Repozitorijumi.PacijentRepozitorijum;
+using Domen.Repozitorijumi.RezultatRepozitorijum;
+using Domen.Repozitorijumi.ZahtevRepozitorijum;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
-using Domen.Klase;
-using Domen.Enumeracije;
 
 namespace UrgentnaPomoc
 {
@@ -14,56 +17,88 @@ namespace UrgentnaPomoc
         static void Main(string[] args)
         {
             int port = 6001;
+            IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
+
+            IPacijentRepozitorijum pacijentRepozitorijum = new PacijentRepozitorijum();
+            IZahtevRepozitorijum zahtevRepozitorijum = new ZahtevRepozitorijum(pacijentRepozitorijum);
+            IRezultatRepozitorijum rezultatRepozitorijum = new RezultatRepozitorijum();
+
+            Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             try
             {
-                TcpListener listener = new TcpListener(IPAddress.Any, port);
-                listener.Start();
+                listener.Bind(localEndPoint);
+                listener.Listen(10);
+
                 Console.WriteLine("[UrgentnaJedinica] Jedinica sluša na portu 6001...");
 
                 while (true)
                 {
-                    TcpClient client = listener.AcceptTcpClient();
+                    Socket clientSocket = listener.Accept();
                     Console.WriteLine("[UrgentnaJedinica] Primljena konekcija.");
 
                     new Thread(() =>
                     {
                         try
                         {
+                            byte[] buffer = new byte[8192];
+                            int received = clientSocket.Receive(buffer);
+
                             Zahtev zahtev;
+                            Pacijent pacijent;
 
-                            using (NetworkStream ns = client.GetStream())
+                            using (MemoryStream msReceive = new MemoryStream(buffer, 0, received))
                             {
-                                // Direktno deserijalizuj sa NetworkStream (bez ručnog čitanja bajtova)
                                 BinaryFormatter formatter = new BinaryFormatter();
-                                zahtev = (Zahtev)formatter.Deserialize(ns);
+                                var tuple = (Tuple<Zahtev, Pacijent>)formatter.Deserialize(msReceive);
+                                zahtev = tuple.Item1;
+                                pacijent = tuple.Item2;
+                            }
 
-                                Console.WriteLine($"[UrgentnaJedinica] Primljen zahtev:");
-                                Console.WriteLine($"  Pacijent ID: {zahtev.IdPacijenta}");
-                                Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
-                                Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
+                            zahtevRepozitorijum.IspisiZahtev(zahtev);
+                            pacijentRepozitorijum.IspisiPacijenta(pacijent);
 
-                                int trajanjeOperacije = 20000;
-                                Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
-                                zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
-                                Thread.Sleep(trajanjeOperacije);
+                            int trajanjeOperacije = 20000;
+                            Console.WriteLine($"[UrgentnaJedinica] Operacija u toku... ({trajanjeOperacije} ms)");
+                            zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
+                            Thread.Sleep(trajanjeOperacije);
+                            zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
 
-                                // Ažuriraj status zahteva
-                                zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
+                            // RUCNI UNOS ishoda operacije
+                            OpisRezultata opis;
+                            while (true)
+                            {
+                                Console.WriteLine("Unesite ishod operacije: 1 - Uspešna, 2 - Neuspešna");
+                                string unos = Console.ReadLine();
+                                if (unos == "1")
+                                {
+                                    opis = OpisRezultata.OPERACIJA_USPESNA;
+                                    break;
+                                }
+                                else if (unos == "2")
+                                {
+                                    opis = OpisRezultata.OPERACIJA_NEUSPESNA;
+                                    break;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Nevažeći unos. Pokušajte ponovo.");
+                                }
+                            }
 
-                                // Kreiraj RezultatLekar objekat
-                                DateTime vreme = DateTime.Now;
-                                Random rand = new Random();
-                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.OPERACIJA_USPESNA : OpisRezultata.OPERACIJA_NEUSPESNA;
+                            RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, DateTime.Now, opis);
 
-                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
+                            Console.WriteLine("[UrgentnaJedinica] Poslat rezultat lekara:");
+                            Console.WriteLine($"Pacijent: {rl.IdPacijenta}, Vreme: {rl.Vreme}, Opis: {rl.OpisRezultata}");
 
-                               
-                                // Pošaljemo RezultatLekar nazad serveru umesto Zahteva
-                                formatter.Serialize(ns, rl);
-                                ns.Flush();
+                            using (MemoryStream msSend = new MemoryStream())
+                            {
+                                BinaryFormatter formatter = new BinaryFormatter();
+                                formatter.Serialize(msSend, rl);
+                                byte[] rezultatBytes = msSend.ToArray();
 
-                                Console.WriteLine("[UrgentnaJedinica] Poslat rezultat lekara serveru.");
+                                clientSocket.Send(rezultatBytes);
+                                clientSocket.Shutdown(SocketShutdown.Send);
                             }
                         }
                         catch (Exception ex)
@@ -72,7 +107,9 @@ namespace UrgentnaPomoc
                         }
                         finally
                         {
-                            client.Close();
+                            if (clientSocket.Connected)
+                                clientSocket.Shutdown(SocketShutdown.Both);
+                            clientSocket.Close();
                         }
                     }).Start();
                 }

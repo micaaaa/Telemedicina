@@ -1,107 +1,125 @@
 ﻿using Domen.Enumeracije;
 using Domen.Klase;
+using Domen.Repozitorijumi.JedinicaRepozitorijum;
+using Domen.Repozitorijumi.PacijentRepozitorijum;
+using Domen.Repozitorijumi.RezultatRepozitorijum;
+using Domen.Repozitorijumi.ZahtevRepozitorijum;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 
-namespace Terapija
+public class Program
 {
-    public class Program
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
+        int port = 6003;
+        IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
+
+        IPacijentRepozitorijum pacijentRepozitorijum = new PacijentRepozitorijum();
+        IZahtevRepozitorijum zahtevRepozitorijum = new ZahtevRepozitorijum(pacijentRepozitorijum);
+        IRezultatRepozitorijum rezultatRepozitorijum = new RezultatRepozitorijum();
+
+        Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+        try
         {
-            int port = 6003;
+            listener.Bind(localEndPoint);
+            listener.Listen(10);
 
-            TcpListener listener = null;
+            Console.WriteLine("[Terapija] Jedinica sluša na portu 6003...");
 
-            try
+            while (true)
             {
-                listener = new TcpListener(IPAddress.Any, port);
+                Socket clientSocket = listener.Accept();
+                Console.WriteLine("[Terapija] Primljena konekcija.");
 
-                // Postavljanje opcije ReuseAddress
-                listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-                listener.Start();
-                Console.WriteLine("[Terapija] Jedinica sluša na portu 6001...");
-
-                while (true)
+                new Thread(() =>
                 {
-                    TcpClient client = listener.AcceptTcpClient();
-                    Console.WriteLine("[Terapija] Primljena konekcija.");
-
-                    new Thread(() =>
+                    try
                     {
-                        try
+                        byte[] buffer = new byte[8192];
+                        int received = clientSocket.Receive(buffer);
+
+                        Zahtev zahtev;
+                        Pacijent pacijent;
+
+                        using (MemoryStream msReceive = new MemoryStream(buffer, 0, received))
                         {
-                            Zahtev zahtev;
+                            BinaryFormatter formatter = new BinaryFormatter();
+                            var tuple = (Tuple<Zahtev, Pacijent>)formatter.Deserialize(msReceive);
+                            zahtev = tuple.Item1;
+                            pacijent = tuple.Item2;
+                        }
 
-                            using (var ns = client.GetStream())
+                        zahtevRepozitorijum.IspisiZahtev(zahtev);
+                        pacijentRepozitorijum.IspisiPacijenta(pacijent);
+
+                        int trajanjeOperacije = 30000;
+                        Console.WriteLine($"[Terapija] Terapija u toku... ({trajanjeOperacije} ms)");
+                        zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
+                        Thread.Sleep(trajanjeOperacije);
+                        zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
+
+                        // Ručni unos ishoda terapije
+                        OpisRezultata opis;
+                        while (true)
+                        {
+                            Console.WriteLine("Unesite ishod terapije: 1 - Uspešna, 2 - Neuspešna");
+                            string unos = Console.ReadLine();
+
+                            if (unos == "1")
                             {
-                                BinaryFormatter formatter = new BinaryFormatter();
-                                zahtev = (Zahtev)formatter.Deserialize(ns);
-
-                                Console.WriteLine($"[Terapija] Primljen zahtev:");
-                                Console.WriteLine($"  Pacijent ID: {zahtev.IdPacijenta}");
-                                Console.WriteLine($"  Jedinica ID: {zahtev.IdJedinice}");
-                                Console.WriteLine($"  Status: {zahtev.StatusZahteva}");
-
-                                // Simulacija operacije
-                                int trajanjeOperacije = 30000;
-                                Console.WriteLine($"[Terapija] Terapija u toku... ({trajanjeOperacije} ms)");
-                                zahtev.StatusZahteva = StatusZahteva.U_OBRADI;
-                                Thread.Sleep(trajanjeOperacije);
-
-                                // Ažuriraj status zahteva
-                                zahtev.StatusZahteva = StatusZahteva.ZAVRSEN;
-
-                                // Pošalji nazad ceo objekat zahtev serveru
-
-                                DateTime vreme = DateTime.Now;
-                                Random rand = new Random();
-                                OpisRezultata opis = rand.Next(2) == 0 ? OpisRezultata.TERAPIJA_USPESNA : OpisRezultata.TERAPIJA_NEUSPESNA;
-
-                                RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, vreme, opis);
-
-                                Console.WriteLine($"[UrgentnaJedinica] Poslat rezultat lekara:");
-                                Console.WriteLine($"  Pacijent ID: {rl.IdPacijenta}");
-                                Console.WriteLine($"  Vreme: {rl.Vreme}");
-                                Console.WriteLine($"  Rezultat: {rl.OpisRezultata}");
-
-                                formatter.Serialize(ns, rl);
-                                ns.Flush();
-
-                                Console.WriteLine("[Terapija] Poslat ažurirani zahtev serveru.");
+                                opis = OpisRezultata.TERAPIJA_USPESNA;
+                                break;
+                            }
+                            else if (unos == "2")
+                            {
+                                opis = OpisRezultata.TERAPIJA_NEUSPESNA;
+                                break;
+                            }
+                            else
+                            {
+                                Console.WriteLine("Nevažeći unos. Pokušajte ponovo.");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[Terapija ERROR] {ex.Message}");
-                        }
-                        finally
-                        {
-                            client.Close();
-                        }
-                    }).Start();
-                }
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine($"[Terapija ERROR] Socket greška: {ex.Message}");
-                Console.WriteLine("Moguće je da port 6001 već koristi drugi proces.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Terapija ERROR] {ex.Message}");
-            }
-            finally
-            {
-                listener?.Stop();
-            }
 
-            Console.WriteLine("Pritisni ENTER za izlaz...");
-            Console.ReadLine();
+                        RezultatLekar rl = new RezultatLekar(zahtev.IdPacijenta, DateTime.Now, opis);
+
+                        Console.WriteLine("[Terapija] Poslat rezultat:");
+                        rezultatRepozitorijum.IspisiRezultat(rl);
+
+                        using (MemoryStream msSend = new MemoryStream())
+                        {
+                            BinaryFormatter formatter = new BinaryFormatter();
+                            formatter.Serialize(msSend, rl);
+                            byte[] rezultatBytes = msSend.ToArray();
+
+                            clientSocket.Send(rezultatBytes);
+                            clientSocket.Shutdown(SocketShutdown.Send);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Terapija ERROR] {ex.Message}");
+                    }
+                    finally
+                    {
+                        if (clientSocket.Connected)
+                            clientSocket.Shutdown(SocketShutdown.Both);
+                        clientSocket.Close();
+                    }
+                }).Start();
+            }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Terapija ERROR] {ex.Message}");
+        }
+
+        Console.WriteLine("Pritisni ENTER za izlaz...");
+        Console.ReadLine();
     }
 }

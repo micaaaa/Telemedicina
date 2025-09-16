@@ -23,5 +23,15 @@ namespace Domen.Klase
             Vreme = vreme;
             OpisRezultata = opisRezultata;
         }
+
+        public void IspisiRezultat(RezultatLekar rezultat)
+        {
+            Console.WriteLine();
+            Console.WriteLine("========================== REZULTAT LEKARA ==========================");
+            Console.WriteLine("| ID pacijenta |      Vreme       |       Opis rezultata         |");
+            Console.WriteLine("|--------------|------------------|------------------------------|");
+            Console.WriteLine($"| {rezultat.IdPacijenta,-12} | {rezultat.Vreme,-16:yyyy-MM-dd HH:mm} | {rezultat.OpisRezultata,-28} |");
+            Console.WriteLine("=====================================================================");
+        }
     }
 }

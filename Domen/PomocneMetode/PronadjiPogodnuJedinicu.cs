@@ -11,7 +11,7 @@ namespace Domen.PomocneMetode
 {
     public class PronadjiPogodnuJedinicu
     {
-        public Jedinica PronadjiPogodnu(VrsteZahteva vrstaZahteva, JedinicaRepozitorijum repozitorijum)
+        public Jedinica PronadjiPogodnu(VrsteZahteva vrstaZahteva, IJedinicaRepozitorijum repozitorijum)
         {
             TipJedinice trazeniTip;
 

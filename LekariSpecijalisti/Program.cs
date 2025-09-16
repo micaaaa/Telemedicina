@@ -12,51 +12,102 @@ namespace LekarSpecijalista
 {
     public class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             int port = 6004;
-            TcpListener listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, port);
+
+            Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            serverSocket.Bind(endPoint);
+            serverSocket.Listen(5);
+
             Console.WriteLine("[LekarSpecijalista] Lekar sluša na portu 6004...");
 
             while (true)
             {
-                TcpClient client = listener.AcceptTcpClient();
+                Socket clientSocket = serverSocket.Accept();
                 Console.WriteLine("[LekarSpecijalista] Server povezan.");
 
                 new Thread(() =>
                 {
                     try
                     {
-                        using (NetworkStream ns = client.GetStream())
+                        
+                        byte[] buffer = new byte[8192];
+                        int received = 0;
+
+                       
+                        received = clientSocket.Receive(buffer);
+
+                        if (received == 0)
+                        {
+                            Console.WriteLine("[LekarSpecijalista] Nema primljenih podataka.");
+                            clientSocket.Close();
+                            return;
+                        }
+
+                        Tuple<List<Pacijent>, List<RezultatLekar>> paket;
+                        using (MemoryStream ms = new MemoryStream(buffer, 0, received))
                         {
                             BinaryFormatter formatter = new BinaryFormatter();
-
-                            var paket = (Tuple<List<Pacijent>, List<RezultatLekar>>)formatter.Deserialize(ns);
-                            List<Pacijent> pacijenti = paket.Item1;
-                            List<RezultatLekar> rezultati = paket.Item2;
-
-                            Console.WriteLine($"[LekarSpecijalista] Primljeno {pacijenti.Count} pacijenata i {rezultati.Count} rezultata.");
-
-                            List<Pacijent> urgenti = new List<Pacijent>();
-                            List<Pacijent> ostali = new List<Pacijent>();
-
-                            foreach (var pacijent in pacijenti)
-                            {
-                                if (pacijent.VrsteZahteva == VrsteZahteva.URGENTA_POMOC)
-                                    urgenti.Add(pacijent);
-                                else
-                                    ostali.Add(pacijent);
-                            }
-
-                            ObradiPacijente(urgenti, rezultati);
-                            ObradiPacijente(ostali, rezultati);
-
-                            // ✔✔✔ Dodato: šaljemo nazad Tuple sa pacijentima i obradjenim rezultatima
-                            var odgovor = Tuple.Create(pacijenti, rezultati);
-                            formatter.Serialize(ns, odgovor);
-                            ns.Flush();
+                            paket = (Tuple<List<Pacijent>, List<RezultatLekar>>)formatter.Deserialize(ms);
                         }
+
+                        List<Pacijent> pacijenti = paket.Item1;
+                        List<RezultatLekar> rezultati = paket.Item2;
+                        
+                   
+                        
+                        Console.WriteLine($"[LekarSpecijalista] Primljeno {pacijenti.Count} pacijenata i {rezultati.Count} rezultata.");
+                        Console.WriteLine();
+                        Console.WriteLine("============================= PACIJENTI =============================");
+                        Console.WriteLine("|   LBO   |    Ime    |   Prezime   |     Vrsta zahteva    |   Status   |");
+                        Console.WriteLine("|---------|-----------|-------------|-----------------------|------------|");
+
+                        foreach (var p in pacijenti)
+                        {
+                            Console.WriteLine($"| {p.LBO,-7} | {p.Ime,-9} | {p.Prezime,-11} | {p.VrsteZahteva,-21} | {p.Status,-10} |");
+                        }
+
+                        Console.WriteLine("=====================================================================\n");
+                        Console.WriteLine("=========================== REZULTATI LEKARA ============================");
+                        Console.WriteLine("| ID Pacijenta |     Vreme      |       Opis rezultata       |");
+                        Console.WriteLine("|--------------|----------------|-----------------------------|");
+
+                        foreach (var r in rezultati)
+                        {
+                            Console.WriteLine($"| {r.IdPacijenta,-13} | {r.Vreme:yyyy-MM-dd HH:mm} | {r.OpisRezultata,-27} |");
+                        }
+
+                        Console.WriteLine("=========================================================================\n");
+
+
+                        List<Pacijent> urgenti = new List<Pacijent>();
+                        List<Pacijent> ostali = new List<Pacijent>();
+
+                        foreach (var pacijent in pacijenti)
+                        {
+                            if (pacijent.VrsteZahteva == VrsteZahteva.URGENTA_POMOC)
+                                urgenti.Add(pacijent);
+                            else
+                                ostali.Add(pacijent);
+                        }
+
+                        ObradiPacijente(urgenti, rezultati);
+                        ObradiPacijente(ostali, rezultati);
+
+                        byte[] odgovorBuffer;
+                        using (MemoryStream ms = new MemoryStream())
+                        {
+                            BinaryFormatter formatter = new BinaryFormatter();
+                            var odgovor = Tuple.Create(pacijenti, rezultati);
+                            formatter.Serialize(ms, odgovor);
+                            odgovorBuffer = ms.ToArray();
+                        }
+                       
+                        clientSocket.Send(odgovorBuffer);
+
+                        Console.WriteLine("[LekarSpecijalista] Odgovor poslat serveru.");
                     }
                     catch (Exception ex)
                     {
@@ -64,7 +115,7 @@ namespace LekarSpecijalista
                     }
                     finally
                     {
-                        client.Close();
+                        clientSocket.Close();
                     }
                 }).Start();
             }
@@ -74,7 +125,7 @@ namespace LekarSpecijalista
         {
             foreach (var pacijent in lista)
             {
-                Thread.Sleep(500); // simulacija obrade
+                Thread.Sleep(500);
 
                 RezultatLekar rezultat = rezultati.Find(r => r.IdPacijenta == pacijent.LBO);
 
@@ -95,7 +146,7 @@ namespace LekarSpecijalista
                         case VrsteZahteva.PREGLED:
                             if (rezultat.OpisRezultata == OpisRezultata.DIJAGNOZA_NIJE_USTANOVLJENA)
                                 pacijent.Status = Status.CEKANJE_PREGLEDA;
-                            break;
+                            break; 
                     }
                 }
 

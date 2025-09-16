@@ -11,12 +11,14 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
     {
         private readonly List<Zahtev> zahtevi = new List<Zahtev>();
         private readonly IPacijentRepozitorijum pacijentRepozitorijum;
-        private readonly object lockObj = new object();  // Za thread-safety
+        private readonly object lockObj = new object(); 
 
         public ZahtevRepozitorijum(IPacijentRepozitorijum pacijentRepozitorijum)
         {
             this.pacijentRepozitorijum = pacijentRepozitorijum;
         }
+
+    
 
         public void DodajZahtev(Zahtev zahtev)
         {
@@ -38,7 +40,6 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
         {
             lock (lockObj)
             {
-                // 1. Uzmi prvi urgentni zahtev ako postoji
                 var urgentniZahtevi = zahtevi
                     .Where(z => {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
@@ -53,7 +54,7 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                     return prviUrgentni;
                 }
 
-                // 2. Uzmi prvi zahtev koji je PREGLED ili TERAPIJA
+
                 var pregledIliTerapija = zahtevi
                     .FirstOrDefault(z => {
                         var pac = pacijentRepozitorijum.PronadjiPoLBO(z.IdPacijenta);
@@ -67,7 +68,6 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                     return pregledIliTerapija;
                 }
 
-                // 3. Na kraju, uzmi prvi zahtev bilo kog drugog tipa (ostali)
                 if (zahtevi.Count > 0)
                 {
                     var prvi = zahtevi[0];
@@ -75,7 +75,6 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                     return prvi;
                 }
 
-                // Nema zahteva
                 return null;
             }
         }
@@ -88,7 +87,35 @@ namespace Domen.Repozitorijumi.ZahtevRepozitorijum
                 return zahtevi.Count > 0;
             }
         }
+        public void AzurirajZahtev(Zahtev zahtev)
+        {
+            lock (lockObj)
+            {
+                int index = zahtevi.FindIndex(z => z.IdPacijenta == zahtev.IdPacijenta);
+                if (index != -1)
+                {
+                    // Ažuriraj postojeći zahtev
+                    zahtevi[index] = zahtev;
+                    Console.WriteLine($"[Repozitorijum] Zahtev pacijenta {zahtev.IdPacijenta} ažuriran.");
+                }
+                else
+                {
+                    // Dodaj novi zahtev ako nije postojao
+                    zahtevi.Add(zahtev);
+                    Console.WriteLine($"[Repozitorijum] Zahtev pacijenta {zahtev.IdPacijenta} nije postojao, dodat je novi.");
+                }
+            }
+        }
 
+        public void IspisiZahtev(Zahtev zahtev)
+        {
+            Console.WriteLine();
+            Console.WriteLine("============================ ZAHTEV KREIRAN ============================");
+            Console.WriteLine("| Pacijent ID | Jedinica ID |     Status zahteva     |");
+            Console.WriteLine("|-------------|-------------|-------------------------|");
+            Console.WriteLine($"| {zahtev.IdPacijenta,-11} | {zahtev.IdJedinice,-11} | {zahtev.StatusZahteva,-23} |");
+            Console.WriteLine("========================================================================");
+        }
 
     }
 }

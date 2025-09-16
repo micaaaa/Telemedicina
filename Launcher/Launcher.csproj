@@ -1,13 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7597B7D7-C601-468F-8D04-F537493E3889}</ProjectGuid>
+    <ProjectGuid>{06A015DB-E5F9-4A8D-BE93-80BF0B34D757}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Klijent</RootNamespace>
-    <AssemblyName>Klijent</AssemblyName>
+    <RootNamespace>Launcher</RootNamespace>
+    <AssemblyName>Launcher</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -32,14 +32,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup>
-    <NoWin32Manifest>true</NoWin32Manifest>
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Text.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL" />
-    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -53,32 +48,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Dijagnostika\Dijagnostika.csproj">
-      <Project>{18e2825a-2f69-41dc-b6f8-016b21e88f10}</Project>
-      <Name>Dijagnostika</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Domen\Domen.csproj">
-      <Project>{e89ac654-f41d-4d53-9dd5-e48537e9f28d}</Project>
-      <Name>Domen</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\LekariSpecijalisti\LekariSpecijalisti.csproj">
-      <Project>{7bca361b-eb38-420f-b185-faef0f9f2ec0}</Project>
-      <Name>LekariSpecijalisti</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Server\Server.csproj">
-      <Project>{bb256e08-006e-4eaa-a613-aeda4b1c6339}</Project>
-      <Name>Server</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Terapija\Terapija.csproj">
-      <Project>{526359b0-8f79-44fc-a013-17bfb4f2af8c}</Project>
-      <Name>Terapija</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\UrgentnaPomoc\UrgentnaPomoc.csproj">
-      <Project>{35f9ea23-be89-49c6-b153-a35e1ad2b24e}</Project>
-      <Name>UrgentnaPomoc</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

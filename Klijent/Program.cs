@@ -1,5 +1,4 @@
-﻿// Klijent/Program.cs
-using Domen.Klase;
+﻿using Domen.Klase;
 using Domen.PomocneMetode;
 using Domen.Repozitorijumi.PacijentRepozitorijum;
 using System;
@@ -20,25 +19,25 @@ namespace Klijent
             {
                 try
                 {
-                    const string serverIp = "127.0.0.1";
+                   
                     const int serverPort = 5000;
-
+                    IPEndPoint serverEP = new IPEndPoint(IPAddress.Loopback, serverPort);
                     IPacijentRepozitorijum pr = new PacijentRepozitorijum();
                     RegistracijaPacijenta registracija = new RegistracijaPacijenta();
 
                     while (true)
                     {
-                        Console.WriteLine("Unesite podatke za novog pacijenta:");
+                        
                         Pacijent pacijent = registracija.Registracija();
-                        pr.DodajPacijenta(pacijent);
-
-                        // Kreiraj i poveži socket za svaki pacijent posebno
+                    
+                        pr.IspisiPacijenta(pacijent);
+                      
                         using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
                         {
-                            socket.Connect(IPAddress.Parse(serverIp), serverPort);
+                            socket.Connect(serverEP);
                             Console.WriteLine("[Pacijent] Konektovan na server.");
 
-                            // Serijalizuj samo objekat pacijenta
+                          
                             byte[] buffer;
                             using (MemoryStream ms = new MemoryStream())
                             {
@@ -47,11 +46,11 @@ namespace Klijent
                                 buffer = ms.ToArray();
                             }
 
-                            // Pošalji pacijenta serveru
+                          
                             socket.Send(buffer);
                             Console.WriteLine("[Pacijent] Podaci poslati serveru.");
 
-                            // Primi odgovor
+                    
                             byte[] ack = new byte[1024];
                             int recv = socket.Receive(ack);
                             string odgovor = Encoding.UTF8.GetString(ack, 0, recv);

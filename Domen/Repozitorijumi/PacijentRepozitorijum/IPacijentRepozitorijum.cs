@@ -14,11 +14,13 @@ namespace Domen.Repozitorijumi.PacijentRepozitorijum
         void DodajPacijenta(Pacijent p);
         void AzurirajStatusPacijenta(Pacijent p);
         void ispisisSve();
-       void SacuvajUFajl(Pacijent p);
-        void UcitajIzFajla();
+       void SacuvajUFajl();
+        List<Pacijent> UcitajIzFajla();
         List<Pacijent> VratiSve();
+        void IspisiPacijenta(Pacijent pacijent);
         void DodajObradjenogPacijenta(Pacijent p);
         List<Pacijent> VratiSveObradjene();
         void UkloniObradjenog(Pacijent p);
+        void UkloniObradjenog2(Pacijent p);
     }
 }
