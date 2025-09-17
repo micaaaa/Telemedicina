@@ -42,7 +42,6 @@ class Server
         new Thread(ObradaZahtevaLoop) { IsBackground = true }.Start();
         // Pokrećemo slanje podataka lekaru u posebnoj niti
         new Thread(SlanjePacijenataLekaruLoop) { IsBackground = true }.Start();
-        new Thread(DinamickoOsvezavanje) { IsBackground = true }.Start();
 
         while (true)
         {
@@ -121,7 +120,7 @@ class Server
                                     continue;
                                 }
 
-                              
+
                                 jedinicaRepozitorijum.AzurirajStatus(jedinica);
 
                                 Console.WriteLine("[Server] Pronadjena slobodna jedinica:");
@@ -159,28 +158,29 @@ class Server
             Thread.Sleep(10); // da ne ide 100% CPU
         }
     }
-    static void ObradaZahtevaLoop()
+  static void ObradaZahtevaLoop()
+{
+    while (true)
     {
-        while (true)
+        Zahtev zahtev = null;
+
+        // Zaključavanje kako bismo bezbedno dobili sledeći zahtev
+        lock (lockObj)
         {
-            Zahtev zahtev = null;
+            zahtev = zahtevRepozitorijum.UzmiSledeciZahtevZaObradu();
+        }
 
-            lock (lockObj)
-            {
-                zahtev = zahtevRepozitorijum.UzmiSledeciZahtevZaObradu();
-            }
-
-            if (zahtev != null)
-            {
-                // Pokreni obradu u novoj niti / tasku - ne blokira glavnu petlju
-                Task.Run(() => ObradiZahtev(zahtev));
-            }
-            else
-            {
-                Thread.Sleep(100); // nema zahteva, malo čekaj
-            }
+        if (zahtev != null)
+        {
+            // Obrada zahteva u istoj niti
+            ObradiZahtev(zahtev); // Umesto Task.Run() pozivamo direktno funkciju u istoj niti
+        }
+        else
+        {
+            Thread.Sleep(100); // Nema zahteva, kratka pauza
         }
     }
+}
 
     static void ObradiZahtev(Zahtev zahtev)
     {
@@ -188,7 +188,10 @@ class Server
         {
             Console.WriteLine($"[Server] Obrađujem zahtev za pacijenta {zahtev.IdPacijenta}");
 
+            // Pronađi jedinicu prema zahtevu
             Jedinica jedinica = jedinicaRepozitorijum.GetById(zahtev.IdJedinice);
+
+            jedinicaRepozitorijum.AzurirajStatus(jedinica);
             if (jedinica == null)
             {
                 Console.WriteLine("[Server] Greška: Jedinica nije pronađena!");
@@ -197,6 +200,7 @@ class Server
 
             int port;
 
+            // Na osnovu tipa jedinice, odredi port
             switch (jedinica.TipJedinice)
             {
                 case TipJedinice.URGENTNA:
@@ -213,38 +217,25 @@ class Server
                     return;
             }
 
+            // Pronađi pacijenta iz zahteva
             Pacijent pac = pacijentRepozitorijum.PronadjiPoLBO(zahtev.IdPacijenta);
             pacijentRepozitorijum.AzurirajStatusPacijenta(pac);
 
+            // Otvori konekciju sa jedinicom
             using (Socket jedinicaSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
-                jedinicaSocket.Blocking = false;
                 IPEndPoint jedinicaEP = new IPEndPoint(IPAddress.Loopback, port);
-
                 try
                 {
-                    jedinicaSocket.Connect(jedinicaEP);
+                    jedinicaSocket.Connect(jedinicaEP);  // Blokirajuće čekanje na konekciju
                 }
                 catch (SocketException ex)
                 {
-                    if (ex.SocketErrorCode != SocketError.WouldBlock &&
-                        ex.SocketErrorCode != SocketError.InProgress &&
-                        ex.SocketErrorCode != SocketError.AlreadyInProgress)
-                    {
-                        Console.WriteLine($"[Server] Greška prilikom konekcije ka jedinici: {ex.Message}");
-                        return;
-                    }
-                }
-
-                List<Socket> writeList = new List<Socket> { jedinicaSocket };
-                Socket.Select(null, writeList, null, 1000000);
-
-                if (writeList.Count == 0)
-                {
-                    Console.WriteLine("[Server] Konekcija ka jedinici nije uspostavljena u roku.");
+                    Console.WriteLine($"[Server] Greška prilikom konekcije ka jedinici: {ex.Message}");
                     return;
                 }
 
+                // Priprema podatke za slanje jedinici
                 var paketZaSlanje = Tuple.Create(zahtev, pac);
                 byte[] bufferToSend;
                 using (MemoryStream ms = new MemoryStream())
@@ -254,54 +245,39 @@ class Server
                     bufferToSend = ms.ToArray();
                 }
 
+                // Šaljemo podatke jedinici
                 int totalSent = 0;
                 while (totalSent < bufferToSend.Length)
                 {
-                    writeList.Clear();
-                    writeList.Add(jedinicaSocket);
-                    Socket.Select(null, writeList, null, 1000000);
-
-                    if (writeList.Count > 0)
-                    {
-                        int sent = jedinicaSocket.Send(bufferToSend, totalSent, bufferToSend.Length - totalSent, SocketFlags.None);
-                        totalSent += sent;
-                    }
-                    else
-                    {
-                        Thread.Sleep(50);
-                    }
+                    int sent = jedinicaSocket.Send(bufferToSend, totalSent, bufferToSend.Length - totalSent, SocketFlags.None);
+                    totalSent += sent;
                 }
 
                 Console.WriteLine($"[Server] Zahtev poslat jedinici {jedinica.IdJedinice}.");
 
+                // Pripremamo se da primimo odgovor od jedinice
                 List<byte> receivedData = new List<byte>();
                 byte[] recvBuffer = new byte[4096];
-                List<Socket> readList = new List<Socket>();
+                int bytesReceived;
 
                 while (true)
                 {
-                    readList.Clear();
-                    readList.Add(jedinicaSocket);
-                    Socket.Select(readList, null, null, 1000000);
+                    bytesReceived = jedinicaSocket.Receive(recvBuffer);
+                    if (bytesReceived == 0)
+                        break;  // Kraj komunikacije
 
-                    if (readList.Count > 0)
+                    // Dodajemo primljene podatke u listu
+                    for (int i = 0; i < bytesReceived; i++)
                     {
-                        int received = jedinicaSocket.Receive(recvBuffer);
-                        if (received == 0)
-                            break;
-
-                        for (int i = 0; i < received; i++)
-                            receivedData.Add(recvBuffer[i]);
-
-                        if (received < recvBuffer.Length)
-                            break;
+                        receivedData.Add(recvBuffer[i]);
                     }
-                    else
-                    {
-                        Thread.Sleep(50);
-                    }
+
+                    // Ako je manji broj bajtova primljen nego što je veličina bafera, to znači da je poruka završena
+                    if (bytesReceived < recvBuffer.Length)
+                        break;
                 }
 
+                // Deserijalizacija primljenih podataka
                 RezultatLekar rezultatLekar;
                 using (MemoryStream msReceive = new MemoryStream(receivedData.ToArray()))
                 {
@@ -309,6 +285,7 @@ class Server
                     rezultatLekar = (RezultatLekar)bf.Deserialize(msReceive);
                 }
 
+                // Obrada rezultata od lekara
                 Pacijent p = pacijentRepozitorijum.PronadjiPoLBO(rezultatLekar.IdPacijenta);
                 pacijentRepozitorijum.AzurirajStatusPacijenta(p);
                 pacijentRepozitorijum.DodajObradjenogPacijenta(p);
@@ -316,10 +293,10 @@ class Server
                 rezultatRepozitorijum.dodajRezultat(rezultatLekar);
                 zahtevRepozitorijum.UkloniZavrsenZahtev(zahtev);
 
-                Console.WriteLine($"[Server] Obrada zahteva završena: ");
+                Console.WriteLine("[Server] Obrada zahteva završena.");
                 rezultatRepozitorijum.IspisiRezultat(rezultatLekar);
 
-           
+                // Ažuriranje statusa jedinice
                 jedinicaRepozitorijum.AzurirajStatus(jedinica);
             }
         }
@@ -423,7 +400,10 @@ class Server
                     if (jedinica != null)
                     {
                         Zahtev noviZahtev = new Zahtev(pacijent.LBO, jedinica.IdJedinice, StatusZahteva.AKTIVAN);
+                    lock (lockObj)
+                    {
                         zahtevRepozitorijum.DodajZahtev(noviZahtev);
+                        }
                         Console.WriteLine($"[Server] Novi zahtev za pacijenta {pacijent.LBO} u jedinici {jedinica.IdJedinice}");
                     }
                     else
@@ -453,54 +433,4 @@ class Server
     }
 }
         }
-
-    static void IspisiPacijente()
-    {
-        Console.SetCursorPosition(0, 2); // Postavljanje kursora na poziciju za osvežavanje
-
-        Console.WriteLine("Pacijenti: ");
-        Console.WriteLine("------------------------------------------------");
-        Console.WriteLine("| LBO        | Ime i Prezime    | Status       |");
-        Console.WriteLine("------------------------------------------------");
-
-        List<Pacijent> pacijenti = pacijentRepozitorijum.VratiSve(); // Pretpostavljamo da imaš metodu koja vraća sve pacijente
-
-        foreach (var pacijent in pacijenti)
-        {
-            Console.WriteLine($"| {pacijent.LBO,-10} | {pacijent.Ime} {pacijent.Prezime,-15} | {pacijent.Status,-12} |");
-        }
-
-        Console.WriteLine("------------------------------------------------");
-    }
-    static void IspisiJedinice()
-    {
-        Console.SetCursorPosition(0, 10); // Postavljanje kursora na poziciju za osvežavanje
-
-        Console.WriteLine("Jedinice: ");
-        Console.WriteLine("------------------------------------------------");
-        Console.WriteLine("| ID Jedinice | Tip Jedinice  | Status       |");
-        Console.WriteLine("------------------------------------------------");
-
-        List<Jedinica> jedinice = jedinicaRepozitorijum.VratiSve(); // Pretpostavljamo da imaš metodu koja vraća sve jedinice
-
-        foreach (var jedinica in jedinice)
-        {
-            Console.WriteLine($"| {jedinica.IdJedinice,-12} | {jedinica.TipJedinice,-12} | {jedinica.Status,-12} |");
-        }
-
-        Console.WriteLine("------------------------------------------------");
-    }
-    static void DinamickoOsvezavanje()
-    {
-        while (true)
-        {
-            IspisiPacijente();
-            IspisiJedinice();
-
-            // Pauza od 5 sekundi pre sledećeg osvežavanja
-            Thread.Sleep(5000);
-        }
-    }
-
-
 }
