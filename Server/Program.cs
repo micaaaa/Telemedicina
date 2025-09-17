@@ -33,21 +33,21 @@ class Server
 
         serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         serverSocket.Bind(new IPEndPoint(IPAddress.Any, port));
-        serverSocket.Listen(5);
-        serverSocket.Blocking = false; // neblokirajući socket
+        serverSocket.Listen(20);
+        serverSocket.Blocking = false; 
 
         Console.WriteLine($"[Server] Čekam konekcije na portu {port}...");
 
-        // Pokrećemo obradu zahteva u posebnoj niti
+       
         new Thread(ObradaZahtevaLoop) { IsBackground = true }.Start();
-        // Pokrećemo slanje podataka lekaru u posebnoj niti
+       
         new Thread(SlanjePacijenataLekaruLoop) { IsBackground = true }.Start();
-
+   
         while (true)
         {
             try
             {
-                // Pravljenje liste soketa za praćenje sa Select-om
+              
                 List<Socket> checkRead = new List<Socket>();
                 checkRead.Add(serverSocket);
 
@@ -112,20 +112,22 @@ class Server
                                 pacijentRepozitorijum.SacuvajUFajl();
 
                                 PronadjiPogodnuJedinicu pronadji = new PronadjiPogodnuJedinicu();
-                                Jedinica jedinica = pronadji.PronadjiPogodnu(pacijent.VrsteZahteva, jedinicaRepozitorijum);
+                                Jedinica jedinica = null;
 
-                                if (jedinica == null)
+                                // Ponavljaj dok ne nađeš slobodnu jedinicu
+                                while (jedinica == null)
                                 {
-                                    socket.Send(Encoding.UTF8.GetBytes("[Server] Nema dostupnih jedinica."));
-                                    continue;
+                                    jedinica = pronadji.PronadjiPogodnu(pacijent.VrsteZahteva, jedinicaRepozitorijum);
+
+                                    if (jedinica == null)
+                                    {
+                                        Console.WriteLine($"[Server] Nema trenutno slobodnih jedinica za pacijenta {pacijent.LBO}, čekam...");
+                                        Thread.Sleep(40000); // čekaj 3 sekunde pre ponovnog pokušaja
+                                    }
                                 }
 
-
-                                jedinicaRepozitorijum.AzurirajStatus(jedinica);
-
-                                Console.WriteLine("[Server] Pronadjena slobodna jedinica:");
+                                Console.WriteLine("[Server] Pronađena slobodna jedinica:");
                                 jedinicaRepozitorijum.IspisiJedinicu(jedinica);
-
                                 Zahtev zahtev = new Zahtev(pacijent.LBO, jedinica.IdJedinice, StatusZahteva.AKTIVAN);
 
                                 lock (lockObj)
@@ -172,9 +174,9 @@ class Server
 
         if (zahtev != null)
         {
-            // Obrada zahteva u istoj niti
-            ObradiZahtev(zahtev); // Umesto Task.Run() pozivamo direktno funkciju u istoj niti
-        }
+                Task.Run(() => ObradiZahtev(zahtev));
+
+            }
         else
         {
             Thread.Sleep(100); // Nema zahteva, kratka pauza
@@ -191,7 +193,7 @@ class Server
             // Pronađi jedinicu prema zahtevu
             Jedinica jedinica = jedinicaRepozitorijum.GetById(zahtev.IdJedinice);
 
-            jedinicaRepozitorijum.AzurirajStatus(jedinica);
+           
             if (jedinica == null)
             {
                 Console.WriteLine("[Server] Greška: Jedinica nije pronađena!");
@@ -199,7 +201,7 @@ class Server
             }
 
             int port;
-
+            jedinicaRepozitorijum.AzurirajStatus(jedinica);
             // Na osnovu tipa jedinice, odredi port
             switch (jedinica.TipJedinice)
             {
